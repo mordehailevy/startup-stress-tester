@@ -34,8 +34,9 @@ export default function IdeaDetailPage() {
     if (!id) return;
     Promise.all([ideasAPI.get(id), ideasAPI.getAnalyses(id)])
       .then(([ideaRes, analysesRes]) => {
-        setIdea(ideaRes.data.data.idea);
-        setAnalyses(analysesRes.data.data.analyses);
+        setIdea(ideaRes.data.data.idea ?? ideaRes.data.data);
+        const aPayload = analysesRes.data;
+        setAnalyses(aPayload.data?.analyses ?? aPayload.data ?? []);
       })
       .finally(() => setLoading(false));
   }, [id]);

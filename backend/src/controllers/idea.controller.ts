@@ -1,9 +1,11 @@
 import { Request, Response, NextFunction } from "express";
 import { Idea } from "../models/Idea";
 import { createAppError } from "../middleware/errorHandler";
+import { AuthRequest } from "../middleware/auth";
+import { parsePagination, buildPaginatedResponse } from "../utils/pagination";
 
 function getUserId(req: Request): string {
-  return (req as unknown as Record<string, unknown>).userId as string;
+  return (req as AuthRequest).userId as string;
 }
 
 export async function createIdea(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -17,8 +19,16 @@ export async function createIdea(req: Request, res: Response, next: NextFunction
 
 export async function getIdeas(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const ideas = await Idea.find({ userId: getUserId(req) }).sort({ createdAt: -1 });
-    res.json({ success: true, data: { ideas, count: ideas.length } });
+    const userId = getUserId(req);
+    const pagination = parsePagination(req);
+    const filter = { userId };
+
+    const [ideas, total] = await Promise.all([
+      Idea.find(filter).sort({ createdAt: -1 }).skip(pagination.skip).limit(pagination.limit),
+      Idea.countDocuments(filter),
+    ]);
+
+    res.json({ success: true, ...buildPaginatedResponse(ideas, total, pagination) });
   } catch (error) {
     next(error);
   }

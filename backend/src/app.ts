@@ -1,9 +1,12 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import morgan from "morgan";
+import pinoHttp from "pino-http";
 import rateLimit from "express-rate-limit";
+import swaggerUi from "swagger-ui-express";
 import config from "./config";
+import logger from "./config/logger";
+import { swaggerSpec } from "./config/swagger";
 import { notFoundHandler, globalErrorHandler } from "./middleware/errorHandler";
 import authRoutes from "./routes/auth.routes";
 import ideaRoutes from "./routes/idea.routes";
@@ -17,9 +20,9 @@ app.use(cors({ origin: config.isProduction ? "https://your-domain.com" : "*" }))
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// ── Logging ─────────────────────────────────────
+// ── Structured logging ──────────────────────────
 if (!config.isTest) {
-  app.use(morgan("dev"));
+  app.use(pinoHttp({ logger }));
 }
 
 // ── Rate limiting ───────────────────────────────
@@ -41,6 +44,13 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/ideas", ideaRoutes);
 app.use("/api/analyses", analysisRoutes);
+
+// ── API documentation ───────────────────────────
+app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: ".swagger-ui .topbar { display: none }",
+  customSiteTitle: "Startup Stress Tester API Docs",
+}));
+app.get("/api/docs.json", (_req, res) => res.json(swaggerSpec));
 
 // ── Error handling ──────────────────────────────
 app.use(notFoundHandler);

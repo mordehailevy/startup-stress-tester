@@ -1,14 +1,14 @@
 import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
+import jwt, { Secret } from "jsonwebtoken";
 import { User } from "../models/User";
 import config from "../config";
 import { createAppError } from "../middleware/errorHandler";
+import { AuthRequest } from "../middleware/auth";
 
 function signToken(userId: string): string {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (jwt as any).sign({ id: userId }, config.jwtSecret, {
-    expiresIn: config.jwtExpiresIn,
-  });
+  const payload = { id: userId };
+  const secret: Secret = config.jwtSecret;
+  return jwt.sign(payload, secret, { expiresIn: config.jwtExpiresIn });
 }
 
 export async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -54,7 +54,7 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
 
 export async function getMe(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const userId = (req as unknown as Record<string, unknown>).userId as string;
+    const { userId } = req as AuthRequest;
     const user = await User.findById(userId);
     if (!user) throw createAppError("User not found", 404);
 

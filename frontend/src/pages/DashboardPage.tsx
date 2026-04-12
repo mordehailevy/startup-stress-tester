@@ -15,7 +15,10 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    ideasAPI.list().then((res) => setIdeas(res.data.data.ideas)).finally(() => setLoading(false));
+    ideasAPI.list().then((res) => {
+      const payload = res.data;
+      setIdeas(payload.data ?? payload.data?.ideas ?? []);
+    }).finally(() => setLoading(false));
   }, []);
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-brand-500" /></div>;

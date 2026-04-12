@@ -3,9 +3,11 @@ import { Idea } from "../models/Idea";
 import { Analysis } from "../models/Analysis";
 import { analyzeIdea } from "../services/analysisEngine";
 import { createAppError } from "../middleware/errorHandler";
+import { AuthRequest } from "../middleware/auth";
+import { parsePagination, buildPaginatedResponse } from "../utils/pagination";
 
 function getUserId(req: Request): string {
-  return (req as unknown as Record<string, unknown>).userId as string;
+  return (req as AuthRequest).userId as string;
 }
 
 /**
@@ -51,8 +53,16 @@ export async function getAnalysisById(req: Request, res: Response, next: NextFun
  */
 export async function getAnalysesForIdea(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const analyses = await Analysis.find({ ideaId: req.params.ideaId, userId: getUserId(req) }).sort({ createdAt: -1 });
-    res.json({ success: true, data: { analyses, count: analyses.length } });
+    const userId = getUserId(req);
+    const pagination = parsePagination(req);
+    const filter = { ideaId: req.params.ideaId, userId };
+
+    const [analyses, total] = await Promise.all([
+      Analysis.find(filter).sort({ createdAt: -1 }).skip(pagination.skip).limit(pagination.limit),
+      Analysis.countDocuments(filter),
+    ]);
+
+    res.json({ success: true, ...buildPaginatedResponse(analyses, total, pagination) });
   } catch (error) {
     next(error);
   }

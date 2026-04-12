@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import config from "../config";
+import logger from "../config/logger";
 
 export interface AppError extends Error {
   statusCode: number;
@@ -27,7 +28,7 @@ export function globalErrorHandler(
   const message = err.isOperational ? err.message : "Internal server error";
 
   if (!config.isProduction) {
-    console.error("🔴 Error:", err);
+    logger.error({ err, statusCode, message }, "🔴 Request error");
   }
 
   res.status(statusCode).json({
