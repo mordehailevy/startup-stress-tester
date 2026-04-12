@@ -3,11 +3,11 @@ import config from "./index";
 
 export async function connectDatabase(): Promise<void> {
   try {
-    await mongoose.connect(config.mongoUri);
+    await mongoose.connect(config.mongoUri, { serverSelectionTimeoutMS: 3000 });
     console.info("✅ MongoDB connected successfully");
   } catch (error) {
     console.error("❌ MongoDB connection failed:", error);
-    process.exit(1);
+    throw error;
   }
 }
 

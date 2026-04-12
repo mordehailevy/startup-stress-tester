@@ -1,7 +1,8 @@
 import { User } from "./models/User";
 import { Idea } from "./models/Idea";
 import { Analysis } from "./models/Analysis";
-import { connectDatabase, disconnectDatabase } from "./config/database";
+import { connectDatabase } from "./config/database";
+import { connectInMemoryDatabase } from "./config/memoryDb";
 
 const SEED_USERS = [
   { email: "demo@startup-tester.com", password: "Demo1234!", fullName: "Demo User" },
@@ -46,7 +47,12 @@ const SEED_IDEAS = [
 ];
 
 async function seed(): Promise<void> {
-  await connectDatabase();
+  try {
+    await connectDatabase();
+  } catch {
+    console.info("⚠️  External MongoDB unavailable — using in-memory MongoDB for seed…");
+    await connectInMemoryDatabase();
+  }
 
   // Clean existing data
   await Promise.all([User.deleteMany({}), Idea.deleteMany({}), Analysis.deleteMany({})]);
@@ -61,9 +67,6 @@ async function seed(): Promise<void> {
 
   console.info("✅ Seed complete — 1 user, 3 ideas");
   console.info("   Login: demo@startup-tester.com / Demo1234!");
-
-  await disconnectDatabase();
-  process.exit(0);
 }
 
 seed().catch((err) => {

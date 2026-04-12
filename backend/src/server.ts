@@ -1,9 +1,16 @@
 import app from "./app";
 import config from "./config";
 import { connectDatabase } from "./config/database";
+import { connectInMemoryDatabase } from "./config/memoryDb";
 
 async function bootstrap(): Promise<void> {
-  await connectDatabase();
+  // Try connecting to external MongoDB; fall back to in-memory if unavailable
+  try {
+    await connectDatabase();
+  } catch {
+    console.info("⚠️  External MongoDB unavailable — starting in-memory MongoDB…");
+    await connectInMemoryDatabase();
+  }
 
   app.listen(config.port, () => {
     console.info(`🚀 Server running on http://localhost:${config.port}`);
