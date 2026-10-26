@@ -42,7 +42,7 @@ export default function Layout() {
 
       {/* ── Footer ────────────────────────────── */}
       <footer className="border-t border-gray-200 bg-white py-4 text-center text-xs text-gray-400">
-        © {new Date().getFullYear()} Startup Stress Tester — Built by Annah Benyamine
+        © {new Date().getFullYear()} Startup Stress Tester — Built by Mordehai Levy
       </footer>
     </div>
   );

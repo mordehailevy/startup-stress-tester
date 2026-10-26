@@ -2,7 +2,7 @@
   "name": "startup-stress-tester-backend",
   "version": "1.0.0",
   "description": "Backend API for Startup Stress Tester — AI-powered startup idea evaluation panel",
-  "author": "Annah Benyamine",
+  "author": "Mordehai Levy",
   "license": "MIT",
   "private": true,
   "engines": {

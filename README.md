@@ -248,10 +248,10 @@ docker compose -f docker-compose.yml up -d
 
 ## Author
 
-**Annah Benyamine** — Software Engineer (10+ years experience)
+**Mordehai Levy** — AI Automation & Full-Stack Developer · [GitHub](https://github.com/mordehailevy) · [LinkedIn](https://www.linkedin.com/in/mordehai-levy-593455426)
 
 ---
 
 ## License
 
-MIT © 2026 Annah Benyamine
+MIT © 2026 Mordehai Levy

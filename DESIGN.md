@@ -148,4 +148,4 @@ The engine is designed to be swappable:
 
 ---
 
-*Document maintained by Annah Benyamine — Last updated April 2026*
+*Document maintained by Mordehai Levy — Last updated April 2026*
