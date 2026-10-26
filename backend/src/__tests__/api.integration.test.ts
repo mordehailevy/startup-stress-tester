@@ -315,6 +315,56 @@ describe("Analysis", () => {
   });
 });
 
+// ── Score summaries & cascade delete ────────────
+
+describe("Idea score summaries", () => {
+  const payload = {
+    title: "Scored Startup",
+    description: "A SaaS platform that helps teams plan their week with enough detail to analyze.",
+    marketSizeEstimate: "$5B market",
+    teamSummary: "2 founders, ex-Google engineer and experienced designer",
+    techStack: "React, Node.js, PostgreSQL",
+    revenueModel: "SaaS subscription $29/mo",
+    stage: "prototype",
+  };
+
+  beforeEach(async () => {
+    const reg = await request(app)
+      .post("/api/auth/register")
+      .send({ email: "scores@example.com", password: "Test1234!", fullName: "Score User" });
+    token = reg.body.data.token;
+  });
+
+  it("GET /api/ideas — includes latest score and history", async () => {
+    const created = await request(app).post("/api/ideas").set("Authorization", `Bearer ${token}`).send(payload);
+    const id = created.body.data.idea._id;
+
+    let res = await request(app).get("/api/ideas").set("Authorization", `Bearer ${token}`);
+    expect(res.body.data[0].latestScore).toBeNull();
+    expect(res.body.data[0].scoreHistory).toEqual([]);
+
+    await request(app).post(`/api/ideas/${id}/analyze`).set("Authorization", `Bearer ${token}`);
+    await request(app).post(`/api/ideas/${id}/analyze`).set("Authorization", `Bearer ${token}`);
+
+    res = await request(app).get("/api/ideas").set("Authorization", `Bearer ${token}`);
+    expect(res.body.data[0].scoreHistory).toHaveLength(2);
+    expect(typeof res.body.data[0].latestScore).toBe("number");
+    expect(res.body.data[0].latestVerdict).toBeDefined();
+  });
+
+  it("DELETE /api/ideas/:id — also removes its analyses", async () => {
+    const created = await request(app).post("/api/ideas").set("Authorization", `Bearer ${token}`).send(payload);
+    const id = created.body.data.idea._id;
+    const run = await request(app).post(`/api/ideas/${id}/analyze`).set("Authorization", `Bearer ${token}`);
+    const analysisId = run.body.data.analysis._id;
+
+    await request(app).delete(`/api/ideas/${id}`).set("Authorization", `Bearer ${token}`).expect(204);
+
+    const res = await request(app).get(`/api/analyses/${analysisId}`).set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(404);
+  });
+});
+
 // ── Edge cases ──────────────────────────────────
 
 describe("Edge cases", () => {
