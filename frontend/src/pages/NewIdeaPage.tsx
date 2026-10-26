@@ -1,5 +1,5 @@
 import { useState, useEffect, FormEvent } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { ideasAPI, IdeaPayload } from "../services/api";
 
@@ -16,6 +16,9 @@ export default function NewIdeaPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const editing = Boolean(id);
+  // ?focus=revenueModel — set by the coaching prompts to land on the field to rewrite.
+  const [params] = useSearchParams();
+  const focus = params.get("focus");
   const [loadingIdea, setLoadingIdea] = useState(editing);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -48,6 +51,15 @@ export default function NewIdeaPage() {
       .catch(() => setError("This idea doesn't exist or was deleted."))
       .finally(() => setLoadingIdea(false));
   }, [id]);
+
+  useEffect(() => {
+    if (loadingIdea || !focus) return;
+    const el = document.getElementById(`f-${focus}`) as HTMLInputElement | HTMLTextAreaElement | null;
+    if (!el) return;
+    el.scrollIntoView({ block: "center" });
+    el.focus();
+    el.select();
+  }, [loadingIdea, focus]);
 
   const update = (field: keyof IdeaPayload, value: string) =>
     setForm((prev) => ({ ...prev, [field]: value }));

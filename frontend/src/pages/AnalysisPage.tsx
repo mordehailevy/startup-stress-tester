@@ -4,6 +4,8 @@ import { analysesAPI, ideasAPI } from "../services/api";
 import { Loader2, ArrowLeft, AlertTriangle, CheckCircle2, Printer, GitCompareArrows } from "lucide-react";
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer } from "recharts";
 import ScoreDial from "../components/ScoreDial";
+import ImprovementPrompts from "../components/ImprovementPrompts";
+import type { IdeaDossier } from "../lib/coachPrompts";
 import { DIMENSIONS, Scores, scoreHex, scoreText } from "../lib/score";
 
 interface Risk {
@@ -39,7 +41,8 @@ export interface Analysis {
   verdict: string;
   engine?: "gemini" | "rules";
   createdAt: string;
-  ideaId: { _id: string; title: string };
+  // Populated by the API with the full idea.
+  ideaId: { _id: string } & IdeaDossier;
 }
 
 const SEVERITY: Record<string, string> = {
@@ -239,6 +242,17 @@ export default function AnalysisPage() {
           </ul>
         </section>
       </div>
+
+      {/* ── Coaching prompts: turn the critique into a better dossier ── */}
+      {analysis.ideaId.description && (
+        <ImprovementPrompts
+          ideaId={analysis.ideaId._id}
+          idea={analysis.ideaId}
+          overall={analysis.overallScore}
+          scores={analysis.scores}
+          feedbacks={analysis.panelistFeedbacks}
+        />
+      )}
 
       {/* ── MVP plan (a real sequence, so it's numbered) ── */}
       <section className="card mb-6 break-inside-avoid">
