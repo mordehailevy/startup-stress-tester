@@ -46,7 +46,7 @@ export default function ScoreDial({ score, verdict, size = 200 }: Props) {
       <figcaption className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="font-display text-6xl font-extrabold leading-none tracking-tight text-gray-900">{score}</span>
         <span className="mt-1 text-xs text-gray-400">out of 100</span>
-        <span className="mt-2 font-display text-lg font-bold" style={{ color: scoreHex(score) }}>
+        <span className="mt-2 max-w-[62%] text-center font-display text-base font-bold leading-tight sm:text-lg" style={{ color: scoreHex(score) }}>
           {VERDICT_LABEL[verdict] ?? verdict}
         </span>
       </figcaption>
