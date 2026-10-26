@@ -284,19 +284,37 @@ function collectRisks(feedbacks: PanelistFeedback[]): Risk[] {
   return risks;
 }
 
+/** Concrete next action for each known weakness (rule-based mode). */
+const ACTIONS: Record<string, string> = {
+  "Market appears limited or niche": "Size the market bottom-up (buyers × price) and name an adjacent segment you could expand into",
+  "Revenue model unclear or unproven": "Pick one pricing model and validate willingness to pay with 10 pre-sales or LOIs",
+  "Team experience not clearly demonstrated": "Add an advisor or co-founder with direct domain experience and highlight it in the pitch",
+  "Description could be more detailed": "Rewrite the description as problem → who suffers → your solution → why now",
+  "Technology stack not clearly defined": "Choose a boring, proven stack for the MVP and document the core architecture on one page",
+  "Includes emerging/unproven technologies — higher execution risk": "Isolate the unproven tech behind a spike and prove it works before building around it",
+  "High technical complexity with seemingly small team": "Cut scope to the single feature that proves the value; postpone integrations and ML",
+  "No clear customer acquisition strategy": "Pick one acquisition channel and run a 2-week test with a fixed small budget",
+  "Target audience not clearly defined": "Write an ideal-customer profile (role, company size, trigger event) and interview 15 of them",
+  "Competitive advantage not clearly articulated": "Map 3–5 competitors and state in one sentence what you do that they cannot easily copy",
+  "Physical operations add complexity and capital requirements": "Start with a partner or marketplace model to avoid owning physical operations early",
+  "External dependencies or regulatory complexity detected": "List required licences and third-party APIs, and get a compliance opinion before launch",
+};
+
 function collectRecommendations(feedbacks: PanelistFeedback[]): Recommendation[] {
+  const seen = new Set<string>();
   const recs: Recommendation[] = [];
   for (const fb of feedbacks) {
-    for (const s of fb.strengths) {
-      recs.push({ text: `Leverage: ${s}`, priority: fb.score >= 70 ? "high" : "medium", role: fb.role });
-    }
     for (const w of fb.weaknesses) {
-      recs.push({ text: `Address: ${w}`, priority: fb.score < 50 ? "high" : "medium", role: fb.role });
+      const text = ACTIONS[w] ?? `Address this weakness: ${w.toLowerCase()}`;
+      if (seen.has(text)) continue;
+      seen.add(text);
+      const priority: Recommendation["priority"] = fb.score < 50 ? "high" : fb.score < 70 ? "medium" : "low";
+      recs.push({ text, priority, role: fb.role });
     }
   }
   const order: Record<string, number> = { high: 0, medium: 1, low: 2 };
   recs.sort((a, b) => order[a.priority] - order[b.priority]);
-  return recs.slice(0, 10); // Top 10
+  return recs.slice(0, 6);
 }
 
 function generateMVPSteps(idea: IdeaInput, scores: Scores): string[] {
@@ -310,12 +328,37 @@ function generateMVPSteps(idea: IdeaInput, scores: Scores): string[] {
   return steps.slice(0, 5);
 }
 
+/** Shortens text at a word boundary, without cutting mid-word. */
+function clip(text: string, max: number): string {
+  const t = text.replace(/\s+/g, " ").trim();
+  if (t.length <= max) return t.replace(/[.\s]+$/, "");
+  const cut = t.slice(0, max);
+  const lastSpace = cut.lastIndexOf(" ");
+  return (lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut).replace(/[,;:.\s]+$/, "") + "…";
+}
+
+/**
+ * Turns the first sentence of the description into a clause that reads after
+ * the venture name: "that helps SMBs track…" or "— an AI tutor that…".
+ */
+function valueProposition(description: string): string {
+  const first = (description.split(/(?<=[.!?])\s/)[0] ?? description).trim();
+  const m = first.match(/^(?:an?|the)?\s*(?:[\w-]+\s+){0,3}?(?:platform|app|application|tool|service|marketplace|solution)\s+(?:that|which)\s+(.*)$/i);
+  if (m) return `that ${clip(m[1], 140)}`;
+  return `— ${clip(first.charAt(0).toLowerCase() + first.slice(1), 140)}`;
+}
+
 function generateShortPitch(idea: IdeaInput, overall: number): string {
-  const strength = overall >= 70 ? "compelling" : overall >= 50 ? "interesting" : "early-stage";
-  const article = /^[aeiou]/.test(strength) ? "an" : "a";
-  return `${idea.title} is ${article} ${strength} ${idea.stage}-stage venture targeting ${idea.marketSizeEstimate.substring(0, 80)}. ` +
-    `Using ${idea.techStack}, it aims to ${idea.description.substring(0, 120).trim()}... ` +
-    `Revenue via ${idea.revenueModel.substring(0, 60).trim()}. Overall viability score: ${overall}/100.`;
+  const name = idea.title.split(/\s+[—–-]\s+/)[0].trim();
+  const strength = overall >= 70 ? "compelling" : overall >= 50 ? "promising" : "early-stage";
+  const stage = idea.stage === "mvp" ? "MVP" : idea.stage;
+  const article = /^[aeiou]/i.test(strength) ? "an" : "a";
+  const sentence = (t: string) => (/[.!?…]$/.test(t) ? t : `${t}.`);
+  return [
+    sentence(`${name} is ${article} ${idea.stage === "idea" ? `${strength} idea` : `${strength} ${stage}-stage venture`} ${valueProposition(idea.description)}`),
+    sentence(`Market: ${clip(idea.marketSizeEstimate, 90)}`),
+    sentence(`Business model: ${clip(idea.revenueModel, 90)}`),
+  ].join(" ");
 }
 
 // ═══════════════════════════════════════════════════
