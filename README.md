@@ -223,7 +223,7 @@ Built-in protections:
 - `.env` is git-ignored; the key is sent in the `x-goog-api-key` header, never in a URL, and is never logged.
 - Analyses require a logged-in user and are limited per user (`AI_HOURLY_LIMIT_PER_USER`, default 10/hour).
 - A daily cap (`AI_DAILY_LIMIT`, default 200) keeps usage inside the free quota; past it, the rule engine answers.
-- Gemini output is validated with Zod; a 20 s timeout and any error fall back to rule-based feedback.
+- Gemini output is validated with Zod; a 45 s timeout (the model thinks before answering) and any error fall back to rule-based feedback.
 - Models are configurable with `GEMINI_MODEL` and `GEMINI_FALLBACK_MODEL` (Google retires older models for new users).
 - Tests never call the real API.
 

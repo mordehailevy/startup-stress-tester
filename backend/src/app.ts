@@ -16,7 +16,7 @@ const app = express();
 
 // ── Security & parsing ──────────────────────────
 app.use(helmet());
-app.use(cors({ origin: config.isProduction ? "https://your-domain.com" : "*" }));
+app.use(cors({ origin: config.isProduction ? config.clientOrigin || false : "*" }));
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 
