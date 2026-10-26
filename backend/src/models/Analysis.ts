@@ -41,6 +41,7 @@ export interface IAnalysis extends Document {
   mvpSteps: string[];
   shortPitch: string;
   verdict: "strong" | "promising" | "needs-work" | "weak";
+  engine: "gemini" | "rules"; // who wrote the panel text
   createdAt: Date;
 }
 
@@ -87,6 +88,7 @@ const analysisSchema = new Schema<IAnalysis>(
       enum: ["strong", "promising", "needs-work", "weak"],
       required: true,
     },
+    engine: { type: String, enum: ["gemini", "rules"], default: "rules" },
   },
   {
     timestamps: true,

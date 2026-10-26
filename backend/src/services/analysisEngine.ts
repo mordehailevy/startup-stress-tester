@@ -312,7 +312,8 @@ function generateMVPSteps(idea: IdeaInput, scores: Scores): string[] {
 
 function generateShortPitch(idea: IdeaInput, overall: number): string {
   const strength = overall >= 70 ? "compelling" : overall >= 50 ? "interesting" : "early-stage";
-  return `${idea.title} is a ${strength} ${idea.stage}-stage venture targeting ${idea.marketSizeEstimate.substring(0, 80)}. ` +
+  const article = /^[aeiou]/.test(strength) ? "an" : "a";
+  return `${idea.title} is ${article} ${strength} ${idea.stage}-stage venture targeting ${idea.marketSizeEstimate.substring(0, 80)}. ` +
     `Using ${idea.techStack}, it aims to ${idea.description.substring(0, 120).trim()}... ` +
     `Revenue via ${idea.revenueModel.substring(0, 60).trim()}. Overall viability score: ${overall}/100.`;
 }

@@ -50,6 +50,7 @@ interface Analysis {
   mvpSteps: string[];
   shortPitch: string;
   verdict: string;
+  engine?: "gemini" | "rules";
   createdAt: string;
   ideaId: { _id: string; title: string };
 }
@@ -104,6 +105,11 @@ export default function AnalysisPage() {
           <div>
             <h1 className="text-2xl font-bold">Stress Test Report</h1>
             <p className="text-sm text-gray-500">{analysis.ideaId.title} — {new Date(analysis.createdAt).toLocaleString()}</p>
+            <p className="mt-1 text-xs text-gray-400">
+              {analysis.engine === "gemini"
+                ? "Scores: rule-based engine · Panel feedback written by Google Gemini"
+                : "Scores and feedback: rule-based engine"}
+            </p>
           </div>
           <div className="flex items-center gap-4">
             <div className="text-center">

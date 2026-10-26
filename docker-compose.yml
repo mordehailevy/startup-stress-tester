@@ -25,6 +25,9 @@ services:
       - "4000:4000"
     env_file:
       - .env.example
+      # Your real values (GEMINI_API_KEY…) live in .env, which git ignores.
+      - path: .env
+        required: false
     environment:
       - MONGODB_URI=mongodb://mongo:27017/startup-stress-tester
     depends_on:

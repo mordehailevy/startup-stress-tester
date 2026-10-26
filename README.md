@@ -1,6 +1,6 @@
 # 🚀 Startup Stress Tester
 
-> **AI-powered investor panel that stress-tests your startup ideas** — submit an idea and receive instant, multi-perspective feedback from a simulated panel of experts (VC investor, CTO, marketing strategist, operations analyst).
+> **Investor panel that stress-tests your startup ideas** — submit an idea, get transparent rule-based scores and written feedback from a panel of four reviewers (VC investor, CTO, marketing strategist, operations analyst), drafted by **Google Gemini**.
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.5-blue?logo=typescript)
 ![Node.js](https://img.shields.io/badge/Node.js-20-green?logo=node.js)
@@ -30,7 +30,7 @@
 
 **Startup Stress Tester** is a full-stack web application designed for entrepreneurs who want honest, data-driven feedback on their startup ideas before pitching to real investors.
 
-The user submits a startup idea (title, description, market size, team, tech stack, revenue model, stage), and the system runs a **simulated AI investor panel** that evaluates the idea across 5 dimensions:
+The user submits a startup idea (title, description, market size, team, tech stack, revenue model, stage), and the system runs a **simulated investor panel** that evaluates the idea across 5 dimensions:
 
 | Dimension | Description |
 |-----------|-------------|
@@ -43,7 +43,7 @@ The user submits a startup idea (title, description, market size, team, tech sta
 The system produces:
 - ✅ Overall score (0–100) and per-dimension scores
 - ✅ Verdict (Strong / Promising / Needs Work / Weak)
-- ✅ Detailed feedback from 4 AI panelists
+- ✅ Detailed feedback from 4 panelists, written by Gemini (rule-based text as fallback)
 - ✅ Prioritized risks and actionable recommendations
 - ✅ Refined short pitch
 - ✅ MVP roadmap (3–5 steps)
@@ -54,7 +54,7 @@ The system produces:
 
 - 🔐 **Authentication** — Secure JWT-based registration and login
 - 📝 **CRUD Ideas** — Create, read, update, delete startup ideas
-- 🧠 **AI Analysis Engine** — Multi-role scoring with 4 simulated expert panelists
+- 🧠 **Hybrid analysis** — A deterministic rule engine computes every score; Google Gemini writes the panel reviews, risks, recommendations, pitch and MVP roadmap around those scores. If Gemini is not configured, too slow or returns invalid output, the app falls back to rule-based text, and the report says which engine wrote it.
 - 📊 **Interactive Dashboard** — Visual radar charts (Recharts), score breakdowns
 - 🛡️ **Security** — Helmet, rate limiting, bcrypt password hashing, input validation (Zod)
 - 🐳 **Docker Ready** — Full docker-compose for one-command startup
@@ -111,7 +111,7 @@ See [DESIGN.md](./DESIGN.md) for detailed architecture decisions.
 git clone https://github.com/your-username/startup-stress-tester.git
 cd startup-stress-tester
 
-# Copy environment variables
+# Copy environment variables (then add your own GEMINI_API_KEY to .env — optional)
 cp .env.example .env
 
 # Start all services
@@ -126,7 +126,7 @@ Open **http://localhost:3000** in your browser.
 # Backend
 cd backend
 npm install
-cp ../.env.example .env   # edit MONGODB_URI for local Mongo
+cp ../.env.example .env   # edit MONGODB_URI for local Mongo, add GEMINI_API_KEY (optional)
 npm run dev
 
 # Frontend (in another terminal)
@@ -207,6 +207,28 @@ startup-stress-tester/
 
 ---
 
+## Gemini (free tier) and API key safety
+
+The panel text is written by Google Gemini (`gemini-3.5-flash`, with `gemini-3.5-flash-lite` as a second try when the main model is overloaded) through the Gemini Interactions API, called **from the backend only**.
+
+1. Create a dedicated key at [aistudio.google.com](https://aistudio.google.com/apikey). Use the free tier and **do not attach a billing account** to that Google project: without billing, the key cannot generate charges.
+2. In Google Cloud Console, restrict the key to the *Generative Language API*.
+3. Put it in `.env` (never in `.env.example`, never in a `VITE_` variable — those are shipped to the browser):
+
+```bash
+GEMINI_API_KEY=your-key
+```
+
+Built-in protections:
+- `.env` is git-ignored; the key is sent in the `x-goog-api-key` header, never in a URL, and is never logged.
+- Analyses require a logged-in user and are limited per user (`AI_HOURLY_LIMIT_PER_USER`, default 10/hour).
+- A daily cap (`AI_DAILY_LIMIT`, default 200) keeps usage inside the free quota; past it, the rule engine answers.
+- Gemini output is validated with Zod; a 20 s timeout and any error fall back to rule-based feedback.
+- Models are configurable with `GEMINI_MODEL` and `GEMINI_FALLBACK_MODEL` (Google retires older models for new users).
+- Tests never call the real API.
+
+---
+
 ## Testing
 
 ```bash
@@ -226,6 +248,7 @@ Test coverage targets:
 - ✅ Analysis engine — strong idea, weak idea, average idea, output shape
 - ✅ Score clamping (0–100)
 - ✅ Panelist feedback structure
+- ✅ Gemini layer — rule-based scores kept, key sent in a header, fallback on missing key, HTTP error, invalid output and timeout (mocked, no real API call)
 - ✅ Risk severity ordering
 
 ---

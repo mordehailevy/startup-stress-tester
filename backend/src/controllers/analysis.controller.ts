@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { Idea } from "../models/Idea";
 import { Analysis } from "../models/Analysis";
 import { analyzeIdea } from "../services/analysisEngine";
+import { enrichWithLlm } from "../services/llmAnalysis";
 import { createAppError } from "../middleware/errorHandler";
 import { AuthRequest } from "../middleware/auth";
 import { parsePagination, buildPaginatedResponse } from "../utils/pagination";
@@ -12,19 +13,21 @@ function getUserId(req: Request): string {
 
 /**
  * POST /api/ideas/:ideaId/analyze
- * Run the AI investor panel stress test on an idea.
+ * Run the investor panel stress test on an idea.
+ * Scores come from the rule engine; Gemini writes the panel text when available.
  */
 export async function runAnalysis(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const idea = await Idea.findOne({ _id: req.params.ideaId, userId: getUserId(req) });
     if (!idea) throw createAppError("Idea not found", 404);
 
-    const result = analyzeIdea(idea);
+    const { result, engine } = await enrichWithLlm(idea, analyzeIdea(idea));
 
     const analysis = await Analysis.create({
       ideaId: idea._id,
       userId: getUserId(req),
       ...result,
+      engine,
     });
 
     res.status(201).json({ success: true, data: { analysis } });

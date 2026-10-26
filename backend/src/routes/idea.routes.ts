@@ -1,5 +1,7 @@
 import { Router } from "express";
-import { authenticate } from "../middleware/auth";
+import rateLimit from "express-rate-limit";
+import config from "../config";
+import { authenticate, AuthRequest } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { createIdeaSchema, updateIdeaSchema } from "../validators/schemas";
 import {
@@ -15,6 +17,16 @@ const router = Router();
 
 // All routes require authentication
 router.use(authenticate);
+
+// Each analysis may call Gemini: cap it per user so nobody can drain the free quota.
+const analyzeLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: config.aiHourlyLimitPerUser,
+  keyGenerator: (req) => (req as AuthRequest).userId as string,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: { message: "Too many analyses this hour, please try again later" } },
+});
 
 /**
  * @openapi
@@ -134,7 +146,7 @@ router.route("/:id")
  *     responses:
  *       200: { description: Paginated list of analyses }
  */
-router.post("/:ideaId/analyze", runAnalysis);
+router.post("/:ideaId/analyze", analyzeLimiter, runAnalysis);
 router.get("/:ideaId/analyses", getAnalysesForIdea);
 
 export default router;
