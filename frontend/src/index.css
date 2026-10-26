@@ -8,6 +8,14 @@
   }
 }
 
+/* ── Export PDF (browser print) ─────────────────── */
+@media print {
+  @page { margin: 14mm; }
+  body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  main { padding: 0 !important; max-width: none !important; }
+  .card { box-shadow: none !important; }
+}
+
 @layer components {
   .btn-primary {
     @apply inline-flex items-center justify-center rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
