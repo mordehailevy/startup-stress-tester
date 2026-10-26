@@ -144,3 +144,33 @@ describe("Analysis Engine", () => {
     });
   });
 });
+
+describe("rule-based pitch and recommendations", () => {
+  const idea = {
+    title: "EcoTrack — Carbon Footprint Tracker for SMBs",
+    description:
+      "A SaaS platform that helps small and medium businesses track, report, and reduce their carbon footprint. " +
+      "Integrates with accounting software to calculate emissions automatically.",
+    marketSizeEstimate: "Global carbon management market worth $12 billion by 2027",
+    teamSummary: "CEO with sustainability background, CTO ex-Stripe",
+    techStack: "React, Node.js, PostgreSQL",
+    revenueModel: "SaaS subscription: $49/mo starter, $199/mo pro, $499/mo enterprise with a very long tail of add-ons",
+    stage: "prototype",
+  };
+
+  it("writes a grammatical pitch that never cuts a word in half", () => {
+    const { shortPitch } = analyzeIdea(idea as never);
+    expect(shortPitch).toMatch(/^EcoTrack is an? \w/);
+    expect(shortPitch).toContain("that helps small and medium businesses");
+    expect(shortPitch).not.toMatch(/\.\.\./);
+    expect(shortPitch).not.toMatch(/\w…\./);
+  });
+
+  it("turns weaknesses into concrete, de-duplicated actions", () => {
+    const { recommendations } = analyzeIdea(idea as never);
+    const texts = recommendations.map((r) => r.text);
+    expect(new Set(texts).size).toBe(texts.length);
+    expect(texts.length).toBeLessThanOrEqual(6);
+    texts.forEach((t) => expect(t).not.toMatch(/^(Leverage|Address):/));
+  });
+});

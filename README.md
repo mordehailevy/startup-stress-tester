@@ -108,7 +108,7 @@ See [DESIGN.md](./DESIGN.md) for detailed architecture decisions.
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/startup-stress-tester.git
+git clone https://github.com/mordehailevy/startup-stress-tester.git
 cd startup-stress-tester
 
 # Copy environment variables (then add your own GEMINI_API_KEY to .env — optional)
@@ -133,6 +133,23 @@ npm run dev
 cd frontend
 npm install
 npm run dev
+```
+
+### Quick demo (no Docker, no MongoDB)
+
+```bash
+cd backend && npm install && npm run demo      # in-memory MongoDB + demo data
+cd frontend && npm install && npm run dev      # http://localhost:3000
+```
+
+Login: `demo@startup-tester.com` / `Demo1234!`
+
+**Port 4000 already in use?** Start the API on another port and point the
+dev proxy at it:
+
+```bash
+cd backend && PORT=4001 npm run demo
+cd frontend && API_PORT=4001 npm run dev
 ```
 
 ### Seed demo data
