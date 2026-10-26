@@ -23,7 +23,17 @@ export default function DashboardPage() {
   useEffect(() => {
     ideasAPI
       .list()
-      .then((res) => setIdeas(res.data.data ?? []))
+      .then((res) =>
+        // Older APIs don't send score fields yet: default them so the page still renders.
+        setIdeas(
+          (res.data.data ?? []).map((i: Partial<IdeaRow>) => ({
+            ...i,
+            latestScore: i.latestScore ?? null,
+            latestVerdict: i.latestVerdict ?? null,
+            scoreHistory: i.scoreHistory ?? [],
+          })) as IdeaRow[]
+        )
+      )
       .catch(() => setFailed(true))
       .finally(() => setLoading(false));
   }, []);

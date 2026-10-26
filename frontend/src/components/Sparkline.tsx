@@ -1,13 +1,13 @@
 import { scoreHex } from "../lib/score";
 
 interface Props {
-  values: number[];
+  values?: number[];
   width?: number;
   height?: number;
 }
 
 /** Tiny score trend (0–100 scale) coloured by the latest score. */
-export default function Sparkline({ values, width = 96, height = 28 }: Props) {
+export default function Sparkline({ values = [], width = 96, height = 28 }: Props) {
   if (values.length < 2) return null;
   const pad = 3;
   const step = (width - pad * 2) / (values.length - 1);
