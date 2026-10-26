@@ -158,10 +158,29 @@ describe("rule-based pitch and recommendations", () => {
     stage: "prototype",
   };
 
+  it("reads a French description as a clause after the name", () => {
+    const { shortPitch } = analyzeIdea({
+      ...idea,
+      description: "Une plateforme qui aide les artisans à trouver des chantiers près de chez eux. Paiement sécurisé intégré.",
+    } as never);
+    expect(shortPitch).toContain("qui aide les artisans à trouver des chantiers");
+  });
+
+  it("scores French keywords like English ones", () => {
+    const fr = analyzeIdea({
+      ...idea,
+      teamSummary: "Cofondateur CEO avec 10 ans d'expérience, CTO ingénieur senior",
+      revenueModel: "Abonnement mensuel récurrent pour les PME",
+    } as never);
+    const investor = fr.panelistFeedbacks.find((f) => f.role === "Venture Capital Investor")!;
+    expect(investor.strengths).toContain("Équipe expérimentée");
+    expect(investor.strengths).toContain("Modèle économique clair et scalable");
+  });
+
   it("writes a grammatical pitch that never cuts a word in half", () => {
     const { shortPitch } = analyzeIdea(idea as never);
-    expect(shortPitch).toMatch(/^EcoTrack is an? \w/);
-    expect(shortPitch).toContain("that helps small and medium businesses");
+    expect(shortPitch).toMatch(/^EcoTrack est un projet \S+/);
+    expect(shortPitch).toContain("— helps small and medium businesses");
     expect(shortPitch).not.toMatch(/\.\.\./);
     expect(shortPitch).not.toMatch(/\w…\./);
   });

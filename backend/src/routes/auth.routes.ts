@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { register, login, getMe } from "../controllers/auth.controller";
+import { register, login, getMe, loginDemo } from "../controllers/auth.controller";
 import { validate } from "../middleware/validate";
 import { authenticate } from "../middleware/auth";
 import { registerSchema, loginSchema } from "../validators/schemas";
@@ -63,5 +63,7 @@ router.post("/login", validate(loginSchema), login);
  *       401: { description: Not authenticated }
  */
 router.get("/me", authenticate, getMe);
+
+router.post("/demo", loginDemo);
 
 export default router;

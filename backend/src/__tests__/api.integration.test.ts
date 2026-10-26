@@ -365,6 +365,38 @@ describe("Idea score summaries", () => {
   });
 });
 
+// ── Demo account ───────────────────────────────
+
+describe("Demo account", () => {
+  it("POST /api/auth/demo — logs into the showcase account with its ideas and reports", async () => {
+    const res = await request(app).post("/api/auth/demo");
+    expect(res.status).toBe(200);
+    expect(res.body.data.user.isDemo).toBe(true);
+    const t = res.body.data.token;
+
+    const ideas = await request(app).get("/api/ideas").set("Authorization", `Bearer ${t}`);
+    expect(ideas.body.data.length).toBe(5);
+    const tested = ideas.body.data.filter((i: { latestScore: number | null }) => i.latestScore !== null);
+    expect(tested.length).toBe(4);
+    expect(ideas.body.data.some((i: { scoreHistory: number[] }) => i.scoreHistory.length >= 3)).toBe(true);
+  });
+
+  it("is read-only for ideas but can still run a stress test", async () => {
+    const t = (await request(app).post("/api/auth/demo")).body.data.token;
+    const auth = { Authorization: `Bearer ${t}` };
+    const ideas = await request(app).get("/api/ideas").set(auth);
+    const id = ideas.body.data[0]._id;
+
+    const created = await request(app).post("/api/ideas").set(auth).send({ title: "x" });
+    expect(created.status).toBe(403);
+    expect((await request(app).put(`/api/ideas/${id}`).set(auth).send({ title: "Nouveau nom" })).status).toBe(403);
+    expect((await request(app).delete(`/api/ideas/${id}`).set(auth)).status).toBe(403);
+
+    const run = await request(app).post(`/api/ideas/${id}/analyze`).set(auth);
+    expect(run.status).toBe(201);
+  });
+});
+
 // ── Edge cases ──────────────────────────────────
 
 describe("Edge cases", () => {

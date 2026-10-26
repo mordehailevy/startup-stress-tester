@@ -73,7 +73,7 @@ export async function getIdeas(req: Request, res: Response, next: NextFunction):
 export async function getIdeaById(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const idea = await Idea.findOne({ _id: req.params.id, userId: getUserId(req) });
-    if (!idea) throw createAppError("Idea not found", 404);
+    if (!idea) throw createAppError("Idée introuvable", 404);
     res.json({ success: true, data: { idea } });
   } catch (error) {
     next(error);
@@ -87,7 +87,7 @@ export async function updateIdea(req: Request, res: Response, next: NextFunction
       req.body,
       { new: true, runValidators: true }
     );
-    if (!idea) throw createAppError("Idea not found", 404);
+    if (!idea) throw createAppError("Idée introuvable", 404);
     res.json({ success: true, data: { idea } });
   } catch (error) {
     next(error);
@@ -97,7 +97,7 @@ export async function updateIdea(req: Request, res: Response, next: NextFunction
 export async function deleteIdea(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const idea = await Idea.findOneAndDelete({ _id: req.params.id, userId: getUserId(req) });
-    if (!idea) throw createAppError("Idea not found", 404);
+    if (!idea) throw createAppError("Idée introuvable", 404);
     await Analysis.deleteMany({ ideaId: idea._id });
     res.status(204).send();
   } catch (error) {

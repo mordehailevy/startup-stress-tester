@@ -1,7 +1,7 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import config from "../config";
-import { authenticate, AuthRequest } from "../middleware/auth";
+import { authenticate, forbidDemo, AuthRequest } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { createIdeaSchema, updateIdeaSchema } from "../validators/schemas";
 import {
@@ -22,10 +22,14 @@ router.use(authenticate);
 const analyzeLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: config.aiHourlyLimitPerUser,
-  keyGenerator: (req) => (req as AuthRequest).userId as string,
+  // The demo account is shared by every visitor, so it is limited per IP instead.
+  keyGenerator: (req) => {
+    const r = req as AuthRequest;
+    return r.isDemo ? `demo:${req.ip}` : (r.userId as string);
+  },
   standardHeaders: true,
   legacyHeaders: false,
-  message: { success: false, error: { message: "Too many analyses this hour, please try again later" } },
+  message: { success: false, error: { message: "Tu as atteint la limite de stress tests pour cette heure, réessaie plus tard" } },
 });
 
 /**
@@ -68,7 +72,7 @@ const analyzeLimiter = rateLimit({
  */
 router.route("/")
   .get(getIdeas)
-  .post(validate(createIdeaSchema), createIdea);
+  .post(forbidDemo, validate(createIdeaSchema), createIdea);
 
 /**
  * @openapi
@@ -110,8 +114,8 @@ router.route("/")
  */
 router.route("/:id")
   .get(getIdeaById)
-  .put(validate(updateIdeaSchema), updateIdea)
-  .delete(deleteIdea);
+  .put(forbidDemo, validate(updateIdeaSchema), updateIdea)
+  .delete(forbidDemo, deleteIdea);
 
 /**
  * @openapi

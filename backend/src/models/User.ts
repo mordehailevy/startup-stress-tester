@@ -5,6 +5,7 @@ export interface IUser extends Document {
   email: string;
   password: string;
   fullName: string;
+  isDemo: boolean; // shared, read-only showcase account
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -32,6 +33,7 @@ const userSchema = new Schema<IUser>(
       trim: true,
       maxlength: 100,
     },
+    isDemo: { type: Boolean, default: false },
   },
   {
     timestamps: true,
