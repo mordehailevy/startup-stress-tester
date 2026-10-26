@@ -7,17 +7,29 @@ import DashboardPage from "./pages/DashboardPage";
 import NewIdeaPage from "./pages/NewIdeaPage";
 import IdeaDetailPage from "./pages/IdeaDetailPage";
 import ComparePage from "./pages/ComparePage";
+import { lazy, Suspense } from "react";
+
+// The landing page carries Remotion + Three.js: load it only when it is visited.
+const LandingPage = lazy(() => import("./pages/LandingPage"));
 import AnalysisPage from "./pages/AnalysisPage";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token, isLoading } = useAuth();
   if (isLoading) return <div className="flex h-screen items-center justify-center">Loading…</div>;
-  return token ? <>{children}</> : <Navigate to="/login" />;
+  return token ? <>{children}</> : <Navigate to="/bienvenue" />;
 }
 
 export default function App() {
   return (
     <Routes>
+      <Route
+        path="/bienvenue"
+        element={
+          <Suspense fallback={<div className="min-h-screen bg-[#121836]" />}>
+            <LandingPage />
+          </Suspense>
+        }
+      />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route

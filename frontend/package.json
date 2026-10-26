@@ -10,26 +10,32 @@
     "lint": "eslint 'src/**/*.{ts,tsx}'"
   },
   "dependencies": {
+    "@react-three/fiber": "^8.18.0",
+    "@remotion/player": "^4.0.539",
+    "@remotion/three": "^4.0.539",
+    "axios": "^1.7.4",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.427.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.0",
-    "axios": "^1.7.4",
     "recharts": "^2.12.7",
-    "lucide-react": "^0.427.0",
-    "clsx": "^2.1.1"
+    "remotion": "^4.0.539",
+    "three": "^0.170.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
+    "@types/three": "^0.170.0",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.20",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react-hooks": "^4.6.2",
     "postcss": "^8.4.41",
     "tailwindcss": "^3.4.10",
     "typescript": "^5.5.4",
-    "vite": "^5.4.0",
-    "eslint": "^8.57.0",
-    "@typescript-eslint/parser": "^7.18.0",
-    "@typescript-eslint/eslint-plugin": "^7.18.0",
-    "eslint-plugin-react-hooks": "^4.6.2"
+    "vite": "^5.4.0"
   }
 }
