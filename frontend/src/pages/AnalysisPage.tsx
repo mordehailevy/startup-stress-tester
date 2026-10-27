@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { analysesAPI, ideasAPI } from "../services/api";
 import { Loader2, ArrowLeft, AlertTriangle, CheckCircle2, Printer, GitCompareArrows } from "lucide-react";
@@ -6,7 +6,10 @@ import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Responsi
 import ScoreDial from "../components/ScoreDial";
 import ImprovementPrompts from "../components/ImprovementPrompts";
 import type { IdeaDossier } from "../lib/coachPrompts";
-import { DIMENSIONS, Scores, scoreHex, scoreText } from "../lib/score";
+import { DIMENSIONS, formatDate, PRIORITY_LABEL, ROLE_LABEL, Scores, scoreHex, scoreText, SEVERITY_LABEL } from "../lib/score";
+import { INK } from "../motion/theme";
+
+const MotionPlayer = lazy(() => import("../motion/MotionPlayer"));
 
 interface Risk {
   title: string;
@@ -84,12 +87,12 @@ export default function AnalysisPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-brand-500" /></div>;
+  if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-brand-500" aria-label="Chargement" /></div>;
   if (!analysis) {
     return (
       <div className="card mx-auto max-w-md text-center">
-        <p className="font-semibold">This report doesn't exist or was deleted.</p>
-        <Link to="/" className="btn-secondary mt-4">Go to your ideas</Link>
+        <p className="font-semibold">Ce rapport n'existe pas ou a été supprimé.</p>
+        <Link to="/" className="btn-secondary mt-4">Retour à tes idées</Link>
       </div>
     );
   }
@@ -100,31 +103,44 @@ export default function AnalysisPage() {
     <div className="mx-auto max-w-4xl print:max-w-none">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 print:hidden">
         <Link to={`/ideas/${analysis.ideaId._id}`} className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-brand-600">
-          <ArrowLeft className="h-4 w-4" /> Back to {analysis.ideaId.title}
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" /> {analysis.ideaId.title}
         </Link>
         <div className="flex gap-2">
           {previous && (
             <Link to={`/compare?a=${previous._id}&b=${analysis._id}`} className="btn-secondary gap-1.5 px-3 py-2 text-xs">
-              <GitCompareArrows className="h-4 w-4" /> Compare with previous
+              <GitCompareArrows className="h-4 w-4" aria-hidden="true" /> Comparer au précédent
             </Link>
           )}
           <button onClick={() => window.print()} className="btn-secondary gap-1.5 px-3 py-2 text-xs">
-            <Printer className="h-4 w-4" /> Export PDF
+            <Printer className="h-4 w-4" aria-hidden="true" /> Exporter en PDF
           </button>
         </div>
       </div>
 
-      {/* ── Verdict ─────────────────────────────── */}
+      {/* ── Animated verdict: the motion piece played with this report's real data ── */}
+      <div className="mb-6 overflow-hidden rounded-2xl shadow-xl shadow-brand-900/10 print:hidden">
+        <Suspense fallback={<div className="aspect-video" style={{ background: INK }} />}>
+          <MotionPlayer
+            variant="report"
+            film={{ ideaTitle: analysis.ideaId.title, overall: analysis.overallScore, verdict: analysis.verdict, scores: analysis.scores }}
+          />
+        </Suspense>
+        <p className="sr-only">
+          Animation du verdict : score global {analysis.overallScore} sur 100, puis le score de chaque dimension.
+        </p>
+      </div>
+
+      {/* ── Summary ─────────────────────────────── */}
       <section className="card mb-6 flex flex-col items-center gap-8 p-8 sm:flex-row sm:items-center">
-        <ScoreDial score={analysis.overallScore} verdict={analysis.verdict} />
+        <ScoreDial score={analysis.overallScore} verdict={analysis.verdict} size={170} />
         <div className="min-w-0 flex-1 text-center sm:text-left">
           <h1 className="font-display text-3xl font-extrabold leading-tight tracking-tight text-gray-900 sm:text-4xl">{analysis.ideaId.title}</h1>
           <p className="mt-2 text-sm text-gray-500">
-            Stress test of {new Date(analysis.createdAt).toLocaleString()}
+            Stress test du {formatDate(analysis.createdAt)}
             {previous && (
               <>
                 {", "}
-                <DeltaText delta={analysis.overallScore - previous.overallScore} /> since the previous run
+                <DeltaText delta={analysis.overallScore - previous.overallScore} /> depuis le test précédent
               </>
             )}
           </p>
@@ -133,15 +149,15 @@ export default function AnalysisPage() {
           </blockquote>
           <p className="mt-3 text-xs text-gray-400">
             {analysis.engine === "gemini"
-              ? "Scores from the rule-based engine; panel feedback written by Google Gemini."
-              : "Scores and feedback from the rule-based engine."}
+              ? "Scores calculés par le moteur à règles ; avis du panel rédigés par Google Gemini."
+              : "Scores et avis produits par le moteur à règles."}
           </p>
         </div>
       </section>
 
       {/* ── Dimensions ──────────────────────────── */}
       <section className="card mb-6 break-inside-avoid">
-        <h2 className="mb-4 font-display text-xl font-bold">Score by dimension</h2>
+        <h2 className="mb-4 font-display text-xl font-bold">Score par dimension</h2>
         <div className="grid items-center gap-6 md:grid-cols-[1fr_260px]">
           <ul className="space-y-3">
             {DIMENSIONS.map((d) => {
@@ -177,12 +193,12 @@ export default function AnalysisPage() {
 
       {/* ── Panel ───────────────────────────────── */}
       <section className="mb-6">
-        <h2 className="mb-3 font-display text-xl font-bold">What the panel said</h2>
+        <h2 className="mb-3 font-display text-xl font-bold">Ce que dit le panel</h2>
         <div className="grid gap-4 md:grid-cols-2">
           {analysis.panelistFeedbacks.map((fb) => (
             <article key={fb.role} className="card break-inside-avoid">
               <header className="mb-2 flex items-start justify-between gap-3">
-                <h3 className="font-semibold text-gray-900">{fb.role}</h3>
+                <h3 className="font-semibold text-gray-900">{ROLE_LABEL[fb.role] ?? fb.role}</h3>
                 <span className={`font-display text-2xl font-extrabold leading-none ${scoreText(fb.score)}`}>{fb.score}</span>
               </header>
               <p className="mb-4 text-sm leading-relaxed text-gray-600">{fb.summary}</p>
@@ -190,7 +206,7 @@ export default function AnalysisPage() {
                 <ul className="mb-2 space-y-1">
                   {fb.strengths.map((s, i) => (
                     <li key={i} className="flex gap-2 text-sm text-gray-700">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-600" aria-label="Strength" /> {s}
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-600" aria-label="Point fort" /> {s}
                     </li>
                   ))}
                 </ul>
@@ -199,7 +215,7 @@ export default function AnalysisPage() {
                 <ul className="space-y-1">
                   {fb.weaknesses.map((w, i) => (
                     <li key={i} className="flex gap-2 text-sm text-gray-700">
-                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" aria-label="Weakness" /> {w}
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" aria-label="Point faible" /> {w}
                     </li>
                   ))}
                 </ul>
@@ -212,14 +228,16 @@ export default function AnalysisPage() {
       {/* ── Risks & actions ─────────────────────── */}
       <div className="mb-6 grid gap-6 md:grid-cols-2">
         <section className="card break-inside-avoid">
-          <h2 className="mb-4 font-display text-xl font-bold">Risks</h2>
+          <h2 className="mb-4 font-display text-xl font-bold">Risques</h2>
           {analysis.risks.length === 0 ? (
-            <p className="text-sm text-gray-500">The panel flagged no major risk.</p>
+            <p className="text-sm text-gray-500">Le panel n'a relevé aucun risque majeur.</p>
           ) : (
             <ul className="space-y-3">
               {analysis.risks.map((r, i) => (
                 <li key={i} className="flex items-start gap-3">
-                  <span className={`mt-0.5 w-16 shrink-0 rounded-full py-0.5 text-center text-[11px] font-semibold ${SEVERITY[r.severity] ?? ""}`}>{r.severity}</span>
+                  <span className={`mt-0.5 w-16 shrink-0 rounded-full py-0.5 text-center text-[11px] font-semibold ${SEVERITY[r.severity] ?? ""}`}>
+                    {SEVERITY_LABEL[r.severity] ?? r.severity}
+                  </span>
                   <span>
                     <span className="block text-sm font-medium text-gray-800">{r.title}</span>
                     <span className="block text-xs text-gray-500">{r.reason}</span>
@@ -231,11 +249,16 @@ export default function AnalysisPage() {
         </section>
 
         <section className="card break-inside-avoid">
-          <h2 className="mb-4 font-display text-xl font-bold">What to do next</h2>
+          <h2 className="mb-4 font-display text-xl font-bold">Les prochaines actions</h2>
+          {analysis.recommendations.length === 0 && (
+            <p className="text-sm text-gray-500">Rien d'urgent à corriger : passe au plan MVP ci-dessous.</p>
+          )}
           <ul className="space-y-3">
             {analysis.recommendations.map((r, i) => (
               <li key={i} className="flex items-start gap-3">
-                <span className={`mt-0.5 w-16 shrink-0 rounded-full py-0.5 text-center text-[11px] font-semibold ${PRIORITY[r.priority] ?? ""}`}>{r.priority}</span>
+                <span className={`mt-0.5 w-16 shrink-0 rounded-full py-0.5 text-center text-[11px] font-semibold ${PRIORITY[r.priority] ?? ""}`}>
+                  {PRIORITY_LABEL[r.priority] ?? r.priority}
+                </span>
                 <span className="text-sm text-gray-700">{r.text}</span>
               </li>
             ))}
@@ -256,7 +279,7 @@ export default function AnalysisPage() {
 
       {/* ── MVP plan (a real sequence, so it's numbered) ── */}
       <section className="card mb-6 break-inside-avoid">
-        <h2 className="mb-4 font-display text-xl font-bold">MVP plan</h2>
+        <h2 className="mb-4 font-display text-xl font-bold">Plan MVP</h2>
         <ol className="space-y-3">
           {analysis.mvpSteps.map((step, i) => (
             <li key={i} className="flex items-start gap-3 text-sm text-gray-700">
@@ -270,9 +293,9 @@ export default function AnalysisPage() {
   );
 }
 
-/** "+6 pts" / "−4 pts" / "no change", coloured by direction. */
+/** "+6 pts" / "−4 pts" / "stable", coloured by direction. */
 export function DeltaText({ delta, small = false }: { delta: number; small?: boolean }) {
   const cls = delta > 0 ? "text-green-600" : delta < 0 ? "text-red-600" : "text-gray-400";
-  const text = delta === 0 ? "no change" : `${delta > 0 ? "+" : "−"}${Math.abs(delta)} pts`;
+  const text = delta === 0 ? "stable" : `${delta > 0 ? "+" : "−"}${Math.abs(delta)} pts`;
   return <span className={`${cls} ${small ? "text-xs" : "font-medium"}`}>{text}</span>;
 }

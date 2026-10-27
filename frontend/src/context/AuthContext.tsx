@@ -5,6 +5,8 @@ interface User {
   _id: string;
   email: string;
   fullName: string;
+  isDemo?: boolean;
+  demoExpiresAt?: string;
 }
 
 interface AuthContextType {
@@ -13,6 +15,9 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, fullName: string) => Promise<void>;
+  loginDemo: () => Promise<void>;
+  /** Turns the current demo space into a real account, keeping its ideas. */
+  claimDemo: (email: string, password: string, fullName: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -54,6 +59,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(u);
   };
 
+  const loginDemo = async () => {
+    const res = await authAPI.demo();
+    const { user: u, token: t } = res.data.data;
+    localStorage.setItem("token", t);
+    setToken(t);
+    setUser(u);
+  };
+
+  const claimDemo = async (email: string, password: string, fullName: string) => {
+    const res = await authAPI.claim({ email, password, fullName });
+    const { user: u, token: t } = res.data.data;
+    localStorage.setItem("token", t);
+    setToken(t);
+    setUser(u);
+  };
+
   const logout = () => {
     localStorage.removeItem("token");
     setToken(null);
@@ -61,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, register, loginDemo, claimDemo, logout }}>
       {children}
     </AuthContext.Provider>
   );

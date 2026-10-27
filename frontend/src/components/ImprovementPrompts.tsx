@@ -45,14 +45,15 @@ function defaultLang(): PromptLang {
   } catch {
     /* storage unavailable */
   }
-  return navigator.language?.toLowerCase().startsWith("fr") ? "fr" : "en";
+  return "fr";
 }
 
 export default function ImprovementPrompts({ ideaId, idea, overall, scores, feedbacks }: Props) {
   const [lang, setLang] = useState<PromptLang>(defaultLang);
   const [open, setOpen] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
-  const t = UI[lang];
+  // The interface stays French; only the prompt text follows the FR/EN switch.
+  const t = UI.fr;
 
   const prompts = useMemo(() => buildCoachPrompts(idea, overall, scores, feedbacks, lang), [idea, overall, scores, feedbacks, lang]);
 
@@ -85,7 +86,7 @@ export default function ImprovementPrompts({ ideaId, idea, overall, scores, feed
     <section className="card mb-6 print:hidden">
       <div className="mb-1 flex flex-wrap items-start justify-between gap-3">
         <h2 className="font-display text-xl font-bold">{t.heading}</h2>
-        <div className="inline-flex rounded-lg border border-gray-200 p-0.5 text-xs font-semibold" role="group" aria-label="Prompt language">
+        <div className="inline-flex rounded-lg border border-gray-200 p-0.5 text-xs font-semibold" role="group" aria-label="Langue des prompts">
           {(["fr", "en"] as const).map((l) => (
             <button
               key={l}

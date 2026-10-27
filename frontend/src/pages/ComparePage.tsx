@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { analysesAPI } from "../services/api";
-import { DIMENSIONS, scoreText, VERDICT_BADGE, VERDICT_LABEL } from "../lib/score";
+import { DIMENSIONS, formatDate, scoreText, VERDICT_BADGE, VERDICT_LABEL } from "../lib/score";
 import type { Analysis } from "./AnalysisPage";
 import { DeltaText } from "./AnalysisPage";
 
@@ -29,8 +29,8 @@ export default function ComparePage() {
   if (error) {
     return (
       <div className="card mx-auto max-w-md text-center">
-        <p className="font-semibold">Pick two reports to compare from an idea's page.</p>
-        <Link to="/" className="btn-secondary mt-4">Go to your ideas</Link>
+        <p className="font-semibold">Choisis deux rapports à comparer depuis la page d'une idée.</p>
+        <Link to="/" className="btn-secondary mt-4">Retour à tes idées</Link>
       </div>
     );
   }
@@ -41,15 +41,15 @@ export default function ComparePage() {
   const afterRisks = new Set(after.risks.map((r) => r.title));
   const resolved = before.risks.filter((r) => !afterRisks.has(r.title));
   const added = after.risks.filter((r) => !beforeRisks.has(r.title));
-  const date = (a: Analysis) => new Date(a.createdAt).toLocaleString();
+  const date = (a: Analysis) => formatDate(a.createdAt);
 
   return (
     <div className="mx-auto max-w-4xl">
       <Link to={`/ideas/${after.ideaId._id}`} className="mb-4 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-brand-600">
-        <ArrowLeft className="h-4 w-4" /> Back to {after.ideaId.title}
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" /> {after.ideaId.title}
       </Link>
 
-      <h1 className="font-display text-3xl font-extrabold tracking-tight">Compare reports</h1>
+      <h1 className="font-display text-3xl font-extrabold tracking-tight">Comparer deux rapports</h1>
       <p className="mb-6 text-sm text-gray-500">{after.ideaId.title}</p>
 
       <section className="card mb-6 overflow-x-auto">
@@ -63,12 +63,12 @@ export default function ComparePage() {
               <th className="pb-3 text-right font-medium">
                 <Link className="hover:text-brand-600" to={`/analyses/${after._id}`}>{date(after)}</Link>
               </th>
-              <th className="pb-3 text-right font-medium">Change</th>
+              <th className="pb-3 text-right font-medium">Écart</th>
             </tr>
           </thead>
           <tbody>
             <tr className="border-b border-gray-100">
-              <td className="py-3 font-semibold text-gray-900">Overall</td>
+              <td className="py-3 font-semibold text-gray-900">Global</td>
               <td className="py-3 text-right">
                 <span className={`font-display text-2xl font-extrabold ${scoreText(before.overallScore)}`}>{before.overallScore}</span>
                 <span className={`ml-2 rounded-full px-2 py-0.5 text-[11px] font-semibold ${VERDICT_BADGE[before.verdict] ?? ""}`}>{VERDICT_LABEL[before.verdict]}</span>
@@ -93,17 +93,17 @@ export default function ComparePage() {
 
       <div className="grid gap-6 md:grid-cols-2">
         <section className="card">
-          <h2 className="mb-3 font-display text-lg font-bold">Risks no longer flagged</h2>
+          <h2 className="mb-3 font-display text-lg font-bold">Risques disparus</h2>
           {resolved.length === 0 ? (
-            <p className="text-sm text-gray-500">None — every earlier risk is still on the list.</p>
+            <p className="text-sm text-gray-500">Aucun : tous les risques précédents sont toujours là.</p>
           ) : (
             <ul className="space-y-2">{resolved.map((r) => <li key={r.title} className="text-sm text-gray-700 line-through decoration-green-500">{r.title}</li>)}</ul>
           )}
         </section>
         <section className="card">
-          <h2 className="mb-3 font-display text-lg font-bold">New risks</h2>
+          <h2 className="mb-3 font-display text-lg font-bold">Nouveaux risques</h2>
           {added.length === 0 ? (
-            <p className="text-sm text-gray-500">No new risk appeared.</p>
+            <p className="text-sm text-gray-500">Aucun nouveau risque.</p>
           ) : (
             <ul className="space-y-2">{added.map((r) => <li key={r.title} className="text-sm text-gray-700">{r.title}</li>)}</ul>
           )}

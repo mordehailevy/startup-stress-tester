@@ -2,7 +2,7 @@ import { useLayoutEffect, useMemo } from "react";
 import { useThree } from "@react-three/fiber";
 import { interpolate, spring, useCurrentFrame, useVideoConfig, Easing } from "remotion";
 import * as THREE from "three";
-import { BEATS, DIMENSIONS, PANELISTS, scoreColor } from "./theme";
+import { BEATS, PANELISTS, scoreColor } from "./theme";
 
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 const ease = Easing.bezier(0.2, 0.8, 0.2, 1);
@@ -78,14 +78,14 @@ function PanelRing({ index }: { index: number }) {
 }
 
 /** The result: five bars growing out of the floor to each dimension's score. */
-function ScoreBars() {
+function ScoreBars({ dimensions }: { dimensions: { label: string; score: number }[] }) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const spacing = 0.78;
 
   return (
     <group position={[0.15, -1.75, 0]} rotation={[0.16, 0, 0]}>
-      {DIMENSIONS.map((d, i) => {
+      {dimensions.map((d, i) => {
         const grow = spring({ frame: frame - BEATS.bars[0] - i * 5, fps, config: { damping: 15, mass: 0.9 } });
         const h = Math.max(0.001, (d.score / 100) * 2.3 * grow);
         return (
@@ -127,7 +127,7 @@ function Dust() {
   );
 }
 
-export default function Scene3D() {
+export default function Scene3D({ dimensions }: { dimensions: { label: string; score: number }[] }) {
   const frame = useCurrentFrame();
   // A gentle camera push-in over the whole loop.
   const z = interpolate(frame, [0, BEATS.collapse[0], BEATS.verdict[1]], [8.6, 7.4, 8.2], { ...clamp, easing: ease });
@@ -145,7 +145,7 @@ export default function Scene3D() {
         {PANELISTS.map((_, i) => (
           <PanelRing key={i} index={i} />
         ))}
-        {showBars && <ScoreBars />}
+        {showBars && <ScoreBars dimensions={dimensions} />}
       </group>
     </>
   );

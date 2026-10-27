@@ -17,7 +17,7 @@ export default function Sparkline({ values = [], width = 96, height = 28 }: Prop
   const delta = last - values[0];
 
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Score trend over ${values.length} analyses, ${delta >= 0 ? "up" : "down"} ${Math.abs(delta)} points`}>
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Évolution du score sur ${values.length} rapports : ${delta >= 0 ? "+" : "−"}${Math.abs(delta)} points`}>
       <polyline points={points} fill="none" stroke="#cbd5e1" strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
       <circle cx={pad + (values.length - 1) * step} cy={y(last)} r={3} fill={scoreHex(last)} />
     </svg>

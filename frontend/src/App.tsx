@@ -15,7 +15,7 @@ import AnalysisPage from "./pages/AnalysisPage";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token, isLoading } = useAuth();
-  if (isLoading) return <div className="flex h-screen items-center justify-center">Loading…</div>;
+  if (isLoading) return <div className="flex h-screen items-center justify-center">Chargement…</div>;
   return token ? <>{children}</> : <Navigate to="/bienvenue" />;
 }
 

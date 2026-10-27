@@ -1,8 +1,9 @@
-import { Player } from "@remotion/player";
-import { Link } from "react-router-dom";
-import { Rocket } from "lucide-react";
-import StressTestFilm from "../motion/StressTestFilm";
-import { DURATION, FPS, HEIGHT, INK, WIDTH, BEATS } from "../motion/theme";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Rocket, Loader2 } from "lucide-react";
+import MotionPlayer from "../motion/MotionPlayer";
+import { useAuth } from "../context/AuthContext";
+import { INK } from "../motion/theme";
 
 const STEPS = [
   {
@@ -20,10 +21,27 @@ const STEPS = [
 ];
 
 export default function LandingPage() {
-  const reduceMotion = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-  // Dev only: /bienvenue?frame=240 freezes the animation on one frame, to review it.
-  const debugFrame = import.meta.env.DEV ? Number(new URLSearchParams(window.location.search).get("frame") ?? NaN) : NaN;
-  const frozen = reduceMotion || !Number.isNaN(debugFrame);
+  const { loginDemo } = useAuth();
+  const navigate = useNavigate();
+  const [demoLoading, setDemoLoading] = useState(false);
+  const [demoError, setDemoError] = useState("");
+
+  const tryDemo = async () => {
+    setDemoError("");
+    setDemoLoading(true);
+    try {
+      await loginDemo();
+      navigate("/");
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      setDemoError(
+        status === 429
+          ? "Trop de démos ouvertes depuis cette connexion. Réessaie dans une heure."
+          : "La démo ne répond pas pour l'instant. Réessaie dans un moment."
+      );
+      setDemoLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
@@ -50,28 +68,20 @@ export default function LandingPage() {
               <Link to="/register" className="btn-primary bg-white px-6 py-3 text-base text-gray-900 hover:bg-brand-50 focus:ring-offset-0">
                 Tester mon idée
               </Link>
-              <Link to="/login" className="inline-flex items-center rounded-lg border border-white/25 px-6 py-3 text-base font-semibold text-white hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300">
-                Voir le compte démo
-              </Link>
+              <button
+                onClick={tryDemo}
+                disabled={demoLoading}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/25 px-6 py-3 text-base font-semibold text-white hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 disabled:opacity-60"
+              >
+                {demoLoading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+                Essayer la démo
+              </button>
             </div>
+            {demoError && <p className="mt-3 text-sm text-red-300" role="alert">{demoError}</p>}
           </div>
 
           <div className="overflow-hidden rounded-2xl ring-1 ring-white/10 shadow-2xl shadow-black/40">
-            <Player
-              component={StressTestFilm}
-              durationInFrames={DURATION}
-              fps={FPS}
-              compositionWidth={WIDTH}
-              compositionHeight={HEIGHT}
-              style={{ width: "100%", aspectRatio: `${WIDTH} / ${HEIGHT}` }}
-              autoPlay={!frozen}
-              loop
-              initialFrame={!Number.isNaN(debugFrame) ? debugFrame : reduceMotion ? BEATS.verdict[1] : 0}
-              controls={reduceMotion}
-              clickToPlay={false}
-              acknowledgeRemotionLicense
-              renderLoading={() => <div style={{ width: "100%", height: "100%", background: INK }} />}
-            />
+            <MotionPlayer variant="showcase" />
           </div>
           <p className="sr-only">
             Animation : une idée de startup apparaît, quatre experts l'examinent tour à tour, puis elle obtient un score de 72 sur 100, verdict prometteur, avec un score par dimension.

@@ -28,7 +28,7 @@ export default function ScoreDial({ score, verdict, size = 200 }: Props) {
   const filled = (arc * shown) / 100;
 
   return (
-    <figure className="relative shrink-0" style={{ width: size, height: size }} aria-label={`Overall score ${score} out of 100, verdict ${VERDICT_LABEL[verdict] ?? verdict}`}>
+    <figure className="relative shrink-0" style={{ width: size, height: size }} aria-label={`Score global ${score} sur 100, verdict : ${VERDICT_LABEL[verdict] ?? verdict}`}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="rotate-[135deg]" aria-hidden="true">
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e5e7eb" strokeWidth={stroke} strokeLinecap="round" strokeDasharray={`${arc} ${circumference}`} />
         <circle
@@ -44,8 +44,8 @@ export default function ScoreDial({ score, verdict, size = 200 }: Props) {
         />
       </svg>
       <figcaption className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-display text-6xl font-extrabold leading-none tracking-tight text-gray-900">{score}</span>
-        <span className="mt-1 text-xs text-gray-400">out of 100</span>
+        <span className="font-display font-extrabold leading-none tracking-tight text-gray-900" style={{ fontSize: Math.round(size * 0.3) }}>{score}</span>
+        <span className="mt-1 text-xs text-gray-400">sur 100</span>
         <span className="mt-2 max-w-[62%] text-center font-display text-base font-bold leading-tight sm:text-lg" style={{ color: scoreHex(score) }}>
           {VERDICT_LABEL[verdict] ?? verdict}
         </span>
