@@ -15,7 +15,14 @@ function connectOnce(): Promise<typeof mongoose> {
     if (!process.env.MONGODB_URI) {
       return Promise.reject(new Error("MONGODB_URI is not set"));
     }
-    connecting = mongoose.connect(config.mongoUri, { serverSelectionTimeoutMS: 8000, maxPoolSize: 5 }).catch((err) => {
+    // The URI from Vercel's MongoDB Atlas integration has no database name (it would default
+    // to "test"): name it explicitly. MONGODB_DB overrides it if needed.
+    connecting = mongoose
+      .connect(config.mongoUri, {
+        dbName: process.env.MONGODB_DB || "startup-stress-tester",
+        serverSelectionTimeoutMS: 8000,
+        maxPoolSize: 5,
+      }).catch((err) => {
       connecting = null; // let the next request retry
       throw err;
     });
