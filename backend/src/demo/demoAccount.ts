@@ -1,4 +1,6 @@
-import { User } from "../models/User";
+import { randomUUID } from "crypto";
+import { Types } from "mongoose";
+import { User, IUser } from "../models/User";
 import { Idea } from "../models/Idea";
 import { Analysis } from "../models/Analysis";
 import { analyzeIdea } from "../services/analysisEngine";
@@ -28,7 +30,7 @@ interface DemoIdea {
  * Showcase ideas. Every score shown in the demo is computed by the real engine
  * on these texts — the progression between versions is genuine, not typed in.
  */
-const DEMO_IDEAS: DemoIdea[] = [
+export const DEMO_IDEAS: DemoIdea[] = [
   {
     title: "Récolte — l'anti-gaspillage pour restaurants",
     daysBetween: 9,
@@ -146,19 +148,11 @@ const DEMO_IDEAS: DemoIdea[] = [
   },
 ];
 
-/** Idempotent: creates the demo user and its showcase data if they don't exist yet. */
-export async function ensureDemoAccount(): Promise<void> {
-  let user = await User.findOne({ email: DEMO_EMAIL });
-  if (user) {
-    if (!user.isDemo) {
-      user.isDemo = true;
-      await user.save();
-    }
-    if ((await Idea.countDocuments({ userId: user._id })) > 0) return;
-  } else {
-    user = await User.create({ email: DEMO_EMAIL, password: DEMO_PASSWORD, fullName: "Visiteur démo", isDemo: true });
-  }
+/** How long a visitor's demo space lives before it is purged. */
+export const DEMO_TTL_HOURS = 24;
 
+/** Copies the showcase ideas and their report history into one user's space. */
+async function seedShowcase(userId: Types.ObjectId): Promise<void> {
   const now = Date.now();
   const day = 24 * 60 * 60 * 1000;
 
@@ -167,7 +161,7 @@ export async function ensureDemoAccount(): Promise<void> {
     const untested = demo.daysBetween === 0;
     const firstAt = new Date(now - (demo.versions.length * demo.daysBetween + ideaIndex) * day);
 
-    const idea = await Idea.create({ ...last, title: demo.title, userId: user._id });
+    const idea = await Idea.create({ ...last, title: demo.title, userId });
     // Backdate the idea so "edited since last report" stays false.
     await Idea.collection.updateOne({ _id: idea._id }, { $set: { createdAt: firstAt, updatedAt: firstAt } });
     if (untested) continue;
@@ -175,8 +169,47 @@ export async function ensureDemoAccount(): Promise<void> {
     for (const [i, version] of demo.versions.entries()) {
       const at = new Date(firstAt.getTime() + (i * demo.daysBetween + 1) * day);
       const result = analyzeIdea({ ...version, title: demo.title });
-      const created = await Analysis.create({ ideaId: idea._id, userId: user._id, ...result, engine: "rules" });
+      const created = await Analysis.create({ ideaId: idea._id, userId, ...result, engine: "rules" });
       await Analysis.collection.updateOne({ _id: created._id }, { $set: { createdAt: at, updatedAt: at } });
     }
   }
+}
+
+/**
+ * Creates a fresh, private demo space for one visitor: a temporary user that
+ * already holds the showcase ideas and reports. Everything works in it —
+ * create, edit, delete, run tests — and nobody else sees the changes.
+ */
+export async function createDemoSpace(): Promise<IUser> {
+  const user = await User.create({
+    email: `visiteur-${randomUUID()}@demo.startup-stress-tester.app`,
+    password: randomUUID(), // never used: demo spaces are opened by token only
+    fullName: "Visiteur démo",
+    isDemo: true,
+    demoExpiresAt: new Date(Date.now() + DEMO_TTL_HOURS * 60 * 60 * 1000),
+  });
+  await seedShowcase(user._id as Types.ObjectId);
+  return user;
+}
+
+/** Deletes demo spaces past their expiry, with their ideas and reports. Returns how many. */
+export async function purgeExpiredDemoSpaces(now = new Date()): Promise<number> {
+  // A demo user without an expiry date can only be a leftover: it is disposable too.
+  const expired = await User.find({
+    isDemo: true,
+    $or: [{ demoExpiresAt: { $lte: now } }, { demoExpiresAt: { $exists: false } }],
+  }).select("_id");
+  if (expired.length === 0) return 0;
+  const ids = expired.map((u) => u._id);
+  await Promise.all([Analysis.deleteMany({ userId: { $in: ids } }), Idea.deleteMany({ userId: { $in: ids } })]);
+  await User.deleteMany({ _id: { $in: ids } });
+  return ids.length;
+}
+
+/** Purges expired demo spaces now and then every hour, for the life of the process. */
+export function scheduleDemoPurge(): void {
+  const run = () =>
+    purgeExpiredDemoSpaces().catch((err) => console.error("Demo purge failed:", err));
+  void run();
+  setInterval(run, 60 * 60 * 1000).unref();
 }

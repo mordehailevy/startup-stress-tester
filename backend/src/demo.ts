@@ -1,10 +1,10 @@
 import app from "./app";
 import config from "./config";
 import { connectInMemoryDatabase } from "./config/memoryDb";
-import { ensureDemoAccount, DEMO_EMAIL, DEMO_PASSWORD } from "./demo/demoAccount";
+import { scheduleDemoPurge, DEMO_EMAIL, DEMO_PASSWORD, DEMO_IDEAS, DEMO_TTL_HOURS } from "./demo/demoAccount";
 
 /**
- * Demo server — in-memory MongoDB pre-loaded with the showcase account.
+ * Demo server — in-memory MongoDB; every visitor gets a private, pre-filled demo space.
  * No external dependencies needed. Perfect for demos and reviews.
  */
 async function startDemo(): Promise<void> {
@@ -12,8 +12,8 @@ async function startDemo(): Promise<void> {
   console.info("📦 Launching in-memory MongoDB…");
 
   await connectInMemoryDatabase();
-  await ensureDemoAccount();
-  console.info("🌱 Demo account ready: 5 ideas with their report history");
+  scheduleDemoPurge();
+  console.info(`🌱 Each demo opens a private space with ${DEMO_IDEAS.length} ideas and their report history`);
 
   app.listen(config.port, () => {
     console.info("");
@@ -23,7 +23,7 @@ async function startDemo(): Promise<void> {
     console.info("");
     console.info(`📧 Demo login: ${DEMO_EMAIL} (or the "Essayer la démo" button)`);
     console.info(`🔑 Password:   ${DEMO_PASSWORD}`);
-    console.info("   The demo account is read-only — register to create your own ideas.");
+    console.info(`   Every demo login gets its own space, fully usable, deleted after ${DEMO_TTL_HOURS} h.`);
     console.info("═══════════════════════════════════════════════════");
     console.info("");
   });

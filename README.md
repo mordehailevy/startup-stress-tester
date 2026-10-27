@@ -142,7 +142,11 @@ cd backend && npm install && npm run demo      # in-memory MongoDB + demo data
 cd frontend && npm install && npm run dev      # http://localhost:3000
 ```
 
-Login: `demo@startup-tester.com` / `Demo1234!`
+Then click **Essayer la démo** (or log in with `demo@startup-tester.com` / `Demo1234!`).
+Each click opens a **private demo space** pre-filled with 5 showcase ideas and their
+report history. Everything works in it — create, edit, delete, run stress tests — and
+nobody else sees the changes. A demo space is deleted after 24 h, unless the visitor
+clicks **Garder mes idées** and creates an account, which keeps everything.
 
 **Port 4000 already in use?** Start the API on another port and point the
 dev proxy at it:
@@ -152,12 +156,15 @@ cd backend && PORT=4001 npm run demo
 cd frontend && API_PORT=4001 npm run dev
 ```
 
-### Seed demo data
+### Demo data
+
+No seeding needed: demo spaces are created on demand and expired ones are purged
+hourly by the server. To tidy a database by hand (removes expired demo spaces and the
+shared demo user older versions created; real accounts are never touched):
 
 ```bash
 cd backend
-npm run seed
-# → Creates demo user: demo@startup-tester.com / Demo1234!
+npm run demo:tidy
 ```
 
 ---

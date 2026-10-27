@@ -2,7 +2,7 @@ import app from "./app";
 import config from "./config";
 import { connectDatabase } from "./config/database";
 import { connectInMemoryDatabase } from "./config/memoryDb";
-import { ensureDemoAccount } from "./demo/demoAccount";
+import { scheduleDemoPurge } from "./demo/demoAccount";
 
 async function bootstrap(): Promise<void> {
   // Try connecting to external MongoDB; fall back to in-memory if unavailable
@@ -13,7 +13,7 @@ async function bootstrap(): Promise<void> {
     await connectInMemoryDatabase();
   }
 
-  await ensureDemoAccount();
+  scheduleDemoPurge();
 
   app.listen(config.port, () => {
     console.info(`🚀 Server running on http://localhost:${config.port}`);

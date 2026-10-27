@@ -1,7 +1,7 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import config from "../config";
-import { authenticate, forbidDemo, AuthRequest } from "../middleware/auth";
+import { authenticate, AuthRequest } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { createIdeaSchema, updateIdeaSchema } from "../validators/schemas";
 import {
@@ -22,7 +22,7 @@ router.use(authenticate);
 const analyzeLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: config.aiHourlyLimitPerUser,
-  // The demo account is shared by every visitor, so it is limited per IP instead.
+  // Anyone can open demo spaces, so demo analyses are limited per IP rather than per space.
   keyGenerator: (req) => {
     const r = req as AuthRequest;
     return r.isDemo ? `demo:${req.ip}` : (r.userId as string);
@@ -72,7 +72,7 @@ const analyzeLimiter = rateLimit({
  */
 router.route("/")
   .get(getIdeas)
-  .post(forbidDemo, validate(createIdeaSchema), createIdea);
+  .post(validate(createIdeaSchema), createIdea);
 
 /**
  * @openapi
@@ -114,8 +114,8 @@ router.route("/")
  */
 router.route("/:id")
   .get(getIdeaById)
-  .put(forbidDemo, validate(updateIdeaSchema), updateIdea)
-  .delete(forbidDemo, deleteIdea);
+  .put(validate(updateIdeaSchema), updateIdea)
+  .delete(deleteIdea);
 
 /**
  * @openapi

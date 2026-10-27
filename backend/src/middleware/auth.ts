@@ -43,15 +43,3 @@ export async function authenticate(
 interface AppError extends Error {
   statusCode: number;
 }
-
-/**
- * The demo account is a shared showcase: visitors can explore and re-run tests,
- * but creating, editing or deleting ideas needs a personal account.
- */
-export function forbidDemo(req: AuthRequest, _res: Response, next: NextFunction): void {
-  if (req.isDemo) {
-    next(createAppError("Le compte démo est en lecture seule : crée ton compte pour ajouter et modifier tes propres idées.", 403));
-    return;
-  }
-  next();
-}
