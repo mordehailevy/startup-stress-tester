@@ -6,6 +6,7 @@ import { createAppError } from "./errorHandler";
 
 export interface AuthRequest extends Request {
   userId?: string;
+  isDemo?: boolean;
 }
 
 export async function authenticate(
@@ -16,24 +17,25 @@ export async function authenticate(
   try {
     const header = req.headers.authorization;
     if (!header || !header.startsWith("Bearer ")) {
-      throw createAppError("Authentication required — provide a Bearer token", 401);
+      throw createAppError("Connexion requise", 401);
     }
 
     const token = header.split(" ")[1];
     const decoded = jwt.verify(token, config.jwtSecret) as { id: string };
 
-    const user = await User.findById(decoded.id).select("_id");
+    const user = await User.findById(decoded.id).select("_id isDemo");
     if (!user) {
-      throw createAppError("User no longer exists", 401);
+      throw createAppError("Ce compte n'existe plus", 401);
     }
 
     req.userId = user._id.toString();
+    req.isDemo = Boolean(user.isDemo);
     next();
   } catch (error) {
     if ((error as AppError).statusCode) {
       next(error);
     } else {
-      next(createAppError("Invalid or expired token", 401));
+      next(createAppError("Session expirée, reconnecte-toi", 401));
     }
   }
 }

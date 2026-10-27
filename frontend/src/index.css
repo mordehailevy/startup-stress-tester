@@ -5,7 +5,16 @@
 @layer base {
   body {
     @apply bg-gray-50 text-gray-900;
+    overflow-x: hidden; /* full-bleed bands use 100vw */
   }
+}
+
+/* ── Export PDF (browser print) ─────────────────── */
+@media print {
+  @page { margin: 14mm; }
+  body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  main { padding: 0 !important; max-width: none !important; }
+  .card { box-shadow: none !important; }
 }
 
 @layer components {

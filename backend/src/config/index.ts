@@ -10,6 +10,8 @@ const config = {
   nodeEnv: process.env.NODE_ENV || "development",
   isProduction: process.env.NODE_ENV === "production",
   isTest: process.env.NODE_ENV === "test",
+  // Behind Vercel's (or any) proxy: trust X-Forwarded-For so rate limits see real visitor IPs.
+  behindProxy: Boolean(process.env.VERCEL) || process.env.TRUST_PROXY === "1",
   // Frontend URL allowed by CORS in production (e.g. https://my-app.vercel.app).
   clientOrigin: process.env.CLIENT_ORIGIN || "",
   // Gemini (free tier). The key stays server-side only — never prefix it with VITE_.
@@ -22,5 +24,10 @@ const config = {
   aiDailyLimit: parseInt(process.env.AI_DAILY_LIMIT || "200", 10),
   aiHourlyLimitPerUser: parseInt(process.env.AI_HOURLY_LIMIT_PER_USER || "10", 10),
 } as const;
+
+// A forgeable session secret in production would let anyone sign in as anyone.
+if (config.isProduction && (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32)) {
+  throw new Error("JWT_SECRET must be set to at least 32 characters in production");
+}
 
 export default config;

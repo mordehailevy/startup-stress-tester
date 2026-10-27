@@ -1,23 +1,15 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { analysesAPI } from "../services/api";
-import { Loader2, ArrowLeft, AlertTriangle, CheckCircle2, Lightbulb, Target } from "lucide-react";
-import {
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-  ResponsiveContainer,
-} from "recharts";
+import { analysesAPI, ideasAPI } from "../services/api";
+import { Loader2, ArrowLeft, AlertTriangle, CheckCircle2, Printer, GitCompareArrows } from "lucide-react";
+import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer } from "recharts";
+import ScoreDial from "../components/ScoreDial";
+import ImprovementPrompts from "../components/ImprovementPrompts";
+import type { IdeaDossier } from "../lib/coachPrompts";
+import { DIMENSIONS, formatDate, PRIORITY_LABEL, ROLE_LABEL, Scores, scoreHex, scoreText, SEVERITY_LABEL } from "../lib/score";
+import { INK } from "../motion/theme";
 
-interface Scores {
-  tech: number;
-  market: number;
-  goToMarket: number;
-  scalability: number;
-  financial: number;
-}
+const MotionPlayer = lazy(() => import("../motion/MotionPlayer"));
 
 interface Risk {
   title: string;
@@ -40,7 +32,7 @@ interface PanelistFeedback {
   weaknesses: string[];
 }
 
-interface Analysis {
+export interface Analysis {
   _id: string;
   overallScore: number;
   scores: Scores;
@@ -52,188 +44,258 @@ interface Analysis {
   verdict: string;
   engine?: "gemini" | "rules";
   createdAt: string;
-  ideaId: { _id: string; title: string };
+  // Populated by the API with the full idea.
+  ideaId: { _id: string } & IdeaDossier;
 }
+
+const SEVERITY: Record<string, string> = {
+  critical: "bg-red-100 text-red-800",
+  high: "bg-orange-100 text-orange-800",
+  medium: "bg-amber-100 text-amber-800",
+  low: "bg-green-100 text-green-800",
+};
+
+const PRIORITY: Record<string, string> = {
+  high: "bg-red-100 text-red-700",
+  medium: "bg-gray-100 text-gray-700",
+  low: "bg-gray-50 text-gray-500",
+};
 
 export default function AnalysisPage() {
   const { id } = useParams<{ id: string }>();
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
+  const [previous, setPrevious] = useState<{ _id: string; scores: Scores; overallScore: number } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!id) return;
-    analysesAPI.get(id).then((res) => setAnalysis(res.data.data.analysis)).finally(() => setLoading(false));
+    setLoading(true);
+    analysesAPI
+      .get(id)
+      .then(async (res) => {
+        const a: Analysis = res.data.data.analysis;
+        setAnalysis(a);
+        // Find the analysis that came right before this one, to show what changed.
+        const list = await ideasAPI.getAnalyses(a.ideaId._id);
+        const all: Analysis[] = list.data.data ?? [];
+        const older = all
+          .filter((x) => new Date(x.createdAt) < new Date(a.createdAt))
+          .sort((x, y) => +new Date(y.createdAt) - +new Date(x.createdAt));
+        setPrevious(older[0] ?? null);
+      })
+      .catch(() => setAnalysis(null))
+      .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-brand-500" /></div>;
-  if (!analysis) return <p>Analysis not found</p>;
+  if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-brand-500" aria-label="Chargement" /></div>;
+  if (!analysis) {
+    return (
+      <div className="card mx-auto max-w-md text-center">
+        <p className="font-semibold">Ce rapport n'existe pas ou a été supprimé.</p>
+        <Link to="/" className="btn-secondary mt-4">Retour à tes idées</Link>
+      </div>
+    );
+  }
 
-  const scoreColor = (score: number) =>
-    score >= 70 ? "text-green-600" : score >= 50 ? "text-yellow-600" : "text-red-600";
-
-  const verdictBadge: Record<string, string> = {
-    strong: "bg-green-100 text-green-800 border-green-300",
-    promising: "bg-blue-100 text-blue-800 border-blue-300",
-    "needs-work": "bg-yellow-100 text-yellow-800 border-yellow-300",
-    weak: "bg-red-100 text-red-800 border-red-300",
-  };
-
-  const sevColor: Record<string, string> = {
-    critical: "bg-red-100 text-red-800",
-    high: "bg-orange-100 text-orange-800",
-    medium: "bg-yellow-100 text-yellow-800",
-    low: "bg-green-100 text-green-800",
-  };
-
-  const radarData = [
-    { subject: "Tech", value: analysis.scores.tech },
-    { subject: "Market", value: analysis.scores.market },
-    { subject: "Go-to-Market", value: analysis.scores.goToMarket },
-    { subject: "Scalability", value: analysis.scores.scalability },
-    { subject: "Financial", value: analysis.scores.financial },
-  ];
+  const radarData = DIMENSIONS.map((d) => ({ subject: d.label, value: analysis.scores[d.key] }));
 
   return (
-    <div className="mx-auto max-w-4xl">
-      <Link to={`/ideas/${analysis.ideaId._id}`} className="mb-4 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-brand-600">
-        <ArrowLeft className="h-4 w-4" /> Back to {analysis.ideaId.title}
-      </Link>
+    <div className="mx-auto max-w-4xl print:max-w-none">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 print:hidden">
+        <Link to={`/ideas/${analysis.ideaId._id}`} className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-brand-600">
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" /> {analysis.ideaId.title}
+        </Link>
+        <div className="flex gap-2">
+          {previous && (
+            <Link to={`/compare?a=${previous._id}&b=${analysis._id}`} className="btn-secondary gap-1.5 px-3 py-2 text-xs">
+              <GitCompareArrows className="h-4 w-4" aria-hidden="true" /> Comparer au précédent
+            </Link>
+          )}
+          <button onClick={() => window.print()} className="btn-secondary gap-1.5 px-3 py-2 text-xs">
+            <Printer className="h-4 w-4" aria-hidden="true" /> Exporter en PDF
+          </button>
+        </div>
+      </div>
 
-      {/* ── Header ──────────────────────────────── */}
-      <div className="card mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold">Stress Test Report</h1>
-            <p className="text-sm text-gray-500">{analysis.ideaId.title} — {new Date(analysis.createdAt).toLocaleString()}</p>
-            <p className="mt-1 text-xs text-gray-400">
-              {analysis.engine === "gemini"
-                ? "Scores: rule-based engine · Panel feedback written by Google Gemini"
-                : "Scores and feedback: rule-based engine"}
-            </p>
+      {/* ── Animated verdict: the motion piece played with this report's real data ── */}
+      <div className="mb-6 overflow-hidden rounded-2xl shadow-xl shadow-brand-900/10 print:hidden">
+        <Suspense fallback={<div className="aspect-video" style={{ background: INK }} />}>
+          <MotionPlayer
+            variant="report"
+            film={{ ideaTitle: analysis.ideaId.title, overall: analysis.overallScore, verdict: analysis.verdict, scores: analysis.scores }}
+          />
+        </Suspense>
+        <p className="sr-only">
+          Animation du verdict : score global {analysis.overallScore} sur 100, puis le score de chaque dimension.
+        </p>
+      </div>
+
+      {/* ── Summary ─────────────────────────────── */}
+      <section className="card mb-6 flex flex-col items-center gap-8 p-8 sm:flex-row sm:items-center">
+        <ScoreDial score={analysis.overallScore} verdict={analysis.verdict} size={170} />
+        <div className="min-w-0 flex-1 text-center sm:text-left">
+          <h1 className="font-display text-3xl font-extrabold leading-tight tracking-tight text-gray-900 sm:text-4xl">{analysis.ideaId.title}</h1>
+          <p className="mt-2 text-sm text-gray-500">
+            Stress test du {formatDate(analysis.createdAt)}
+            {previous && (
+              <>
+                {", "}
+                <DeltaText delta={analysis.overallScore - previous.overallScore} /> depuis le test précédent
+              </>
+            )}
+          </p>
+          <blockquote className="mt-5 border-l-4 border-brand-300 pl-4 text-left text-[15px] leading-relaxed text-gray-700">
+            {analysis.shortPitch}
+          </blockquote>
+          <p className="mt-3 text-xs text-gray-400">
+            {analysis.engine === "gemini"
+              ? "Scores calculés par le moteur à règles ; avis du panel rédigés par Google Gemini."
+              : "Scores et avis produits par le moteur à règles."}
+          </p>
+        </div>
+      </section>
+
+      {/* ── Dimensions ──────────────────────────── */}
+      <section className="card mb-6 break-inside-avoid">
+        <h2 className="mb-4 font-display text-xl font-bold">Score par dimension</h2>
+        <div className="grid items-center gap-6 md:grid-cols-[1fr_260px]">
+          <ul className="space-y-3">
+            {DIMENSIONS.map((d) => {
+              const v = analysis.scores[d.key];
+              return (
+                <li key={d.key}>
+                  <div className="mb-1 flex items-baseline justify-between text-sm">
+                    <span className="font-medium text-gray-700">{d.label}</span>
+                    <span className="flex items-baseline gap-2">
+                      {previous && <DeltaText delta={v - previous.scores[d.key]} small />}
+                      <span className={`font-display text-lg font-bold ${scoreText(v)}`}>{v}</span>
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-gray-100" role="presentation">
+                    <div className="h-2 rounded-full" style={{ width: `${v}%`, backgroundColor: scoreHex(v) }} />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="hidden h-60 md:block print:block" aria-hidden="true">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
+                <PolarGrid stroke="#e5e7eb" />
+                <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11, fill: "#6b7280" }} />
+                <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
+                <Radar dataKey="value" stroke="#4c6ef5" fill="#4c6ef5" fillOpacity={0.2} strokeWidth={2} isAnimationActive={false} />
+              </RadarChart>
+            </ResponsiveContainer>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="text-center">
-              <div className={`text-4xl font-extrabold ${scoreColor(analysis.overallScore)}`}>{analysis.overallScore}</div>
-              <div className="text-xs text-gray-400">/ 100</div>
-            </div>
-            <span className={`rounded-full border px-3 py-1 text-sm font-semibold ${verdictBadge[analysis.verdict] || ""}`}>
-              {analysis.verdict.replace("-", " ").toUpperCase()}
-            </span>
-          </div>
         </div>
-      </div>
+      </section>
 
-      {/* ── Radar Chart ─────────────────────────── */}
-      <div className="card mb-6">
-        <h2 className="mb-4 text-lg font-semibold">Score Breakdown</h2>
-        <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
-              <PolarGrid stroke="#e5e7eb" />
-              <PolarAngleAxis dataKey="subject" tick={{ fontSize: 12, fill: "#6b7280" }} />
-              <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 10 }} />
-              <Radar name="Score" dataKey="value" stroke="#4c6ef5" fill="#4c6ef5" fillOpacity={0.25} strokeWidth={2} />
-            </RadarChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="mt-4 grid grid-cols-2 sm:grid-cols-5 gap-3 text-center text-sm">
-          {radarData.map((d) => (
-            <div key={d.subject}>
-              <div className={`text-xl font-bold ${scoreColor(d.value)}`}>{d.value}</div>
-              <div className="text-xs text-gray-500">{d.subject}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Short Pitch ─────────────────────────── */}
-      <div className="card mb-6 bg-brand-50 border-brand-200">
-        <h2 className="mb-2 flex items-center gap-2 text-lg font-semibold text-brand-800">
-          <Target className="h-5 w-5" /> Refined Pitch
-        </h2>
-        <p className="text-brand-900 leading-relaxed">{analysis.shortPitch}</p>
-      </div>
-
-      {/* ── Panelist Feedbacks ──────────────────── */}
-      <div className="card mb-6">
-        <h2 className="mb-4 text-lg font-semibold">AI Panel Feedback</h2>
-        <div className="space-y-4">
+      {/* ── Panel ───────────────────────────────── */}
+      <section className="mb-6">
+        <h2 className="mb-3 font-display text-xl font-bold">Ce que dit le panel</h2>
+        <div className="grid gap-4 md:grid-cols-2">
           {analysis.panelistFeedbacks.map((fb) => (
-            <div key={fb.role} className="rounded-lg border border-gray-100 p-4">
-              <div className="mb-2 flex items-center justify-between">
-                <h3 className="font-semibold">{fb.role}</h3>
-                <span className={`text-lg font-bold ${scoreColor(fb.score)}`}>{fb.score}/100</span>
-              </div>
-              <p className="mb-3 text-sm text-gray-600">{fb.summary}</p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {fb.strengths.length > 0 && (
-                  <div>
-                    <h4 className="mb-1 flex items-center gap-1 text-xs font-semibold text-green-700">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Strengths
-                    </h4>
-                    <ul className="space-y-1">
-                      {fb.strengths.map((s, i) => <li key={i} className="text-xs text-gray-600">• {s}</li>)}
-                    </ul>
-                  </div>
-                )}
-                {fb.weaknesses.length > 0 && (
-                  <div>
-                    <h4 className="mb-1 flex items-center gap-1 text-xs font-semibold text-red-700">
-                      <AlertTriangle className="h-3.5 w-3.5" /> Weaknesses
-                    </h4>
-                    <ul className="space-y-1">
-                      {fb.weaknesses.map((w, i) => <li key={i} className="text-xs text-gray-600">• {w}</li>)}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            </div>
+            <article key={fb.role} className="card break-inside-avoid">
+              <header className="mb-2 flex items-start justify-between gap-3">
+                <h3 className="font-semibold text-gray-900">{ROLE_LABEL[fb.role] ?? fb.role}</h3>
+                <span className={`font-display text-2xl font-extrabold leading-none ${scoreText(fb.score)}`}>{fb.score}</span>
+              </header>
+              <p className="mb-4 text-sm leading-relaxed text-gray-600">{fb.summary}</p>
+              {fb.strengths.length > 0 && (
+                <ul className="mb-2 space-y-1">
+                  {fb.strengths.map((s, i) => (
+                    <li key={i} className="flex gap-2 text-sm text-gray-700">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-600" aria-label="Point fort" /> {s}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {fb.weaknesses.length > 0 && (
+                <ul className="space-y-1">
+                  {fb.weaknesses.map((w, i) => (
+                    <li key={i} className="flex gap-2 text-sm text-gray-700">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" aria-label="Point faible" /> {w}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </article>
           ))}
         </div>
+      </section>
+
+      {/* ── Risks & actions ─────────────────────── */}
+      <div className="mb-6 grid gap-6 md:grid-cols-2">
+        <section className="card break-inside-avoid">
+          <h2 className="mb-4 font-display text-xl font-bold">Risques</h2>
+          {analysis.risks.length === 0 ? (
+            <p className="text-sm text-gray-500">Le panel n'a relevé aucun risque majeur.</p>
+          ) : (
+            <ul className="space-y-3">
+              {analysis.risks.map((r, i) => (
+                <li key={i} className="flex items-start gap-3">
+                  <span className={`mt-0.5 w-16 shrink-0 rounded-full py-0.5 text-center text-[11px] font-semibold ${SEVERITY[r.severity] ?? ""}`}>
+                    {SEVERITY_LABEL[r.severity] ?? r.severity}
+                  </span>
+                  <span>
+                    <span className="block text-sm font-medium text-gray-800">{r.title}</span>
+                    <span className="block text-xs text-gray-500">{r.reason}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="card break-inside-avoid">
+          <h2 className="mb-4 font-display text-xl font-bold">Les prochaines actions</h2>
+          {analysis.recommendations.length === 0 && (
+            <p className="text-sm text-gray-500">Rien d'urgent à corriger : passe au plan MVP ci-dessous.</p>
+          )}
+          <ul className="space-y-3">
+            {analysis.recommendations.map((r, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <span className={`mt-0.5 w-16 shrink-0 rounded-full py-0.5 text-center text-[11px] font-semibold ${PRIORITY[r.priority] ?? ""}`}>
+                  {PRIORITY_LABEL[r.priority] ?? r.priority}
+                </span>
+                <span className="text-sm text-gray-700">{r.text}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
       </div>
 
-      {/* ── Risks ───────────────────────────────── */}
-      <div className="card mb-6">
-        <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
-          <AlertTriangle className="h-5 w-5 text-orange-500" /> Identified Risks
-        </h2>
-        <div className="space-y-2">
-          {analysis.risks.map((r, i) => (
-            <div key={i} className="flex items-start gap-3 rounded-lg border border-gray-100 p-3">
-              <span className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${sevColor[r.severity] || ""}`}>{r.severity}</span>
-              <div>
-                <p className="text-sm font-medium text-gray-800">{r.title}</p>
-                <p className="text-xs text-gray-500">{r.reason}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* ── Coaching prompts: turn the critique into a better dossier ── */}
+      {analysis.ideaId.description && (
+        <ImprovementPrompts
+          ideaId={analysis.ideaId._id}
+          idea={analysis.ideaId}
+          overall={analysis.overallScore}
+          scores={analysis.scores}
+          feedbacks={analysis.panelistFeedbacks}
+        />
+      )}
 
-      {/* ── Recommendations ─────────────────────── */}
-      <div className="card mb-6">
-        <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
-          <Lightbulb className="h-5 w-5 text-yellow-500" /> Recommendations
-        </h2>
-        <ul className="space-y-2">
-          {analysis.recommendations.map((r, i) => (
-            <li key={i} className="flex items-start gap-2 text-sm">
-              <span className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${r.priority === "high" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-600"}`}>{r.priority}</span>
-              <span className="text-gray-700">{r.text}</span>
+      {/* ── MVP plan (a real sequence, so it's numbered) ── */}
+      <section className="card mb-6 break-inside-avoid">
+        <h2 className="mb-4 font-display text-xl font-bold">Plan MVP</h2>
+        <ol className="space-y-3">
+          {analysis.mvpSteps.map((step, i) => (
+            <li key={i} className="flex items-start gap-3 text-sm text-gray-700">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-600 font-display text-xs font-bold text-white">{i + 1}</span>
+              <span className="pt-0.5">{step}</span>
             </li>
           ))}
-        </ul>
-      </div>
-
-      {/* ── MVP Steps ───────────────────────────── */}
-      <div className="card mb-6">
-        <h2 className="mb-4 text-lg font-semibold">🚀 Recommended MVP Steps</h2>
-        <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700">
-          {analysis.mvpSteps.map((step, i) => (
-            <li key={i}>{step}</li>
-          ))}
         </ol>
-      </div>
+      </section>
     </div>
   );
+}
+
+/** "+6 pts" / "−4 pts" / "stable", coloured by direction. */
+export function DeltaText({ delta, small = false }: { delta: number; small?: boolean }) {
+  const cls = delta > 0 ? "text-green-600" : delta < 0 ? "text-red-600" : "text-gray-400";
+  const text = delta === 0 ? "stable" : `${delta > 0 ? "+" : "−"}${Math.abs(delta)} pts`;
+  return <span className={`${cls} ${small ? "text-xs" : "font-medium"}`}>{text}</span>;
 }

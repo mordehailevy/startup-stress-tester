@@ -108,7 +108,7 @@ See [DESIGN.md](./DESIGN.md) for detailed architecture decisions.
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/startup-stress-tester.git
+git clone https://github.com/mordehailevy/startup-stress-tester.git
 cd startup-stress-tester
 
 # Copy environment variables (then add your own GEMINI_API_KEY to .env — optional)
@@ -135,12 +135,36 @@ npm install
 npm run dev
 ```
 
-### Seed demo data
+### Quick demo (no Docker, no MongoDB)
+
+```bash
+cd backend && npm install && npm run demo      # in-memory MongoDB + demo data
+cd frontend && npm install && npm run dev      # http://localhost:3000
+```
+
+Then click **Essayer la démo** (or log in with `demo@startup-tester.com` / `Demo1234!`).
+Each click opens a **private demo space** pre-filled with 5 showcase ideas and their
+report history. Everything works in it — create, edit, delete, run stress tests — and
+nobody else sees the changes. A demo space is deleted after 24 h, unless the visitor
+clicks **Garder mes idées** and creates an account, which keeps everything.
+
+**Port 4000 already in use?** Start the API on another port and point the
+dev proxy at it:
+
+```bash
+cd backend && PORT=4001 npm run demo
+cd frontend && API_PORT=4001 npm run dev
+```
+
+### Demo data
+
+No seeding needed: demo spaces are created on demand and expired ones are purged
+hourly by the server. To tidy a database by hand (removes expired demo spaces and the
+shared demo user older versions created; real accounts are never touched):
 
 ```bash
 cd backend
-npm run seed
-# → Creates demo user: demo@startup-tester.com / Demo1234!
+npm run demo:tidy
 ```
 
 ---
@@ -255,11 +279,25 @@ Test coverage targets:
 
 ## Deployment
 
-### Vercel (frontend) + Render/Heroku (backend)
+### Vercel (frontend + API in one project)
 
-1. **Frontend** — Connect `frontend/` folder to Vercel, set build command `npm run build`, output `dist/`
-2. **Backend** — Deploy `backend/` to Render or Heroku, set env vars from `.env.example`
-3. **MongoDB** — Use MongoDB Atlas free tier
+The repository deploys to Vercel as a single project, configured by `vercel.json`:
+the React app is served statically and the Express API runs as one serverless
+function behind `/api` (`api/index.js` → `backend/src/serverless/handler.ts`), on the
+same domain — no CORS setup needed.
+
+1. Import the GitHub repository in Vercel (root directory: the repository root).
+2. Add a MongoDB database — the **MongoDB Atlas** integration from the Vercel
+   Marketplace sets `MONGODB_URI` automatically (or paste an Atlas connection string).
+3. Set the environment variables:
+
+| Variable | Required | Notes |
+|---|---|---|
+| `MONGODB_URI` | yes | MongoDB Atlas connection string |
+| `JWT_SECRET` | yes | at least 32 random characters (`openssl rand -hex 32`); the API refuses to start without it |
+| `GEMINI_API_KEY` | no | without it, feedback comes from the rule-based engine |
+
+Expired demo spaces are purged when demos are opened (no background process is needed).
 
 ### Docker (self-hosted)
 

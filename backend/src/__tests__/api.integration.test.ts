@@ -4,6 +4,8 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 import app from "../app";
 import { User } from "../models/User";
 import { Idea } from "../models/Idea";
+import { Analysis } from "../models/Analysis";
+import { purgeExpiredDemoSpaces, DEMO_EMAIL, DEMO_PASSWORD } from "../demo/demoAccount";
 
 let mongo: MongoMemoryServer;
 let token: string;
@@ -22,6 +24,7 @@ afterAll(async () => {
 afterEach(async () => {
   await User.deleteMany({});
   await Idea.deleteMany({});
+  await Analysis.deleteMany({});
 });
 
 // ── Auth ────────────────────────────────────────
@@ -312,6 +315,147 @@ describe("Analysis", () => {
     expect(res.status).toBe(200);
     expect(res.body.data.length).toBe(2);
     expect(res.body.pagination.total).toBe(2);
+  });
+});
+
+// ── Score summaries & cascade delete ────────────
+
+describe("Idea score summaries", () => {
+  const payload = {
+    title: "Scored Startup",
+    description: "A SaaS platform that helps teams plan their week with enough detail to analyze.",
+    marketSizeEstimate: "$5B market",
+    teamSummary: "2 founders, ex-Google engineer and experienced designer",
+    techStack: "React, Node.js, PostgreSQL",
+    revenueModel: "SaaS subscription $29/mo",
+    stage: "prototype",
+  };
+
+  beforeEach(async () => {
+    const reg = await request(app)
+      .post("/api/auth/register")
+      .send({ email: "scores@example.com", password: "Test1234!", fullName: "Score User" });
+    token = reg.body.data.token;
+  });
+
+  it("GET /api/ideas — includes latest score and history", async () => {
+    const created = await request(app).post("/api/ideas").set("Authorization", `Bearer ${token}`).send(payload);
+    const id = created.body.data.idea._id;
+
+    let res = await request(app).get("/api/ideas").set("Authorization", `Bearer ${token}`);
+    expect(res.body.data[0].latestScore).toBeNull();
+    expect(res.body.data[0].scoreHistory).toEqual([]);
+
+    await request(app).post(`/api/ideas/${id}/analyze`).set("Authorization", `Bearer ${token}`);
+    await request(app).post(`/api/ideas/${id}/analyze`).set("Authorization", `Bearer ${token}`);
+
+    res = await request(app).get("/api/ideas").set("Authorization", `Bearer ${token}`);
+    expect(res.body.data[0].scoreHistory).toHaveLength(2);
+    expect(typeof res.body.data[0].latestScore).toBe("number");
+    expect(res.body.data[0].latestVerdict).toBeDefined();
+  });
+
+  it("DELETE /api/ideas/:id — also removes its analyses", async () => {
+    const created = await request(app).post("/api/ideas").set("Authorization", `Bearer ${token}`).send(payload);
+    const id = created.body.data.idea._id;
+    const run = await request(app).post(`/api/ideas/${id}/analyze`).set("Authorization", `Bearer ${token}`);
+    const analysisId = run.body.data.analysis._id;
+
+    await request(app).delete(`/api/ideas/${id}`).set("Authorization", `Bearer ${token}`).expect(204);
+
+    const res = await request(app).get(`/api/analyses/${analysisId}`).set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(404);
+  });
+});
+
+// ── Demo spaces ────────────────────────────────
+
+describe("Demo spaces", () => {
+  const ideaPayload = {
+    title: "Mon idée",
+    description: "Une idée créée pendant la démo, avec assez de détails pour être analysée.",
+    marketSizeEstimate: "Marché de 2 Md€",
+    teamSummary: "Deux cofondateurs",
+    techStack: "React, Node.js",
+    revenueModel: "Abonnement mensuel",
+    stage: "idea",
+  };
+
+  it("POST /api/auth/demo — opens a pre-filled space with ideas and report history", async () => {
+    const res = await request(app).post("/api/auth/demo");
+    expect(res.status).toBe(201);
+    expect(res.body.data.user.isDemo).toBe(true);
+    expect(res.body.data.user.demoExpiresAt).toBeDefined();
+    const t = res.body.data.token;
+
+    const ideas = await request(app).get("/api/ideas").set("Authorization", `Bearer ${t}`);
+    expect(ideas.body.data.length).toBe(5);
+    const tested = ideas.body.data.filter((i: { latestScore: number | null }) => i.latestScore !== null);
+    expect(tested.length).toBe(4);
+    expect(ideas.body.data.some((i: { scoreHistory: number[] }) => i.scoreHistory.length >= 3)).toBe(true);
+  });
+
+  it("is fully usable and private to each visitor", async () => {
+    const a = (await request(app).post("/api/auth/demo")).body.data.token;
+    const b = (await request(app).post("/api/auth/demo")).body.data.token;
+    const authA = { Authorization: `Bearer ${a}` };
+
+    const created = await request(app).post("/api/ideas").set(authA).send(ideaPayload);
+    expect(created.status).toBe(201);
+    const id = created.body.data.idea._id;
+    expect((await request(app).put(`/api/ideas/${id}`).set(authA).send({ title: "Nouveau nom" })).status).toBe(200);
+    expect((await request(app).post(`/api/ideas/${id}/analyze`).set(authA)).status).toBe(201);
+
+    const first = (await request(app).get("/api/ideas").set(authA)).body.data.find((i: { title: string }) => i.title.startsWith("Récolte"));
+    expect((await request(app).delete(`/api/ideas/${first._id}`).set(authA)).status).toBe(204);
+
+    // Visitor B still has the untouched showcase, without A's idea.
+    const ideasB = (await request(app).get("/api/ideas").set({ Authorization: `Bearer ${b}` })).body.data;
+    expect(ideasB.length).toBe(5);
+    expect(ideasB.some((i: { title: string }) => i.title === "Nouveau nom")).toBe(false);
+  });
+
+  it("the published demo credentials also open a fresh space", async () => {
+    const res = await request(app).post("/api/auth/login").send({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
+    expect(res.status).toBe(200);
+    expect(res.body.data.user.isDemo).toBe(true);
+    expect(res.body.data.user.email).not.toBe(DEMO_EMAIL);
+  });
+
+  it("POST /api/auth/claim — turns the demo into a real account and keeps its ideas", async () => {
+    const t = (await request(app).post("/api/auth/demo")).body.data.token;
+    const auth = { Authorization: `Bearer ${t}` };
+    await request(app).post("/api/ideas").set(auth).send(ideaPayload);
+
+    const claim = await request(app)
+      .post("/api/auth/claim")
+      .set(auth)
+      .send({ email: "fondatrice@example.com", password: "Motdepasse1!", fullName: "Fondatrice" });
+    expect(claim.status).toBe(200);
+    expect(claim.body.data.user.isDemo).toBe(false);
+
+    const login = await request(app).post("/api/auth/login").send({ email: "fondatrice@example.com", password: "Motdepasse1!" });
+    expect(login.status).toBe(200);
+    const ideas = await request(app).get("/api/ideas").set("Authorization", `Bearer ${login.body.data.token}`);
+    expect(ideas.body.data.length).toBe(6);
+
+    // A real account cannot be claimed again.
+    const again = await request(app)
+      .post("/api/auth/claim")
+      .set("Authorization", `Bearer ${login.body.data.token}`)
+      .send({ email: "autre@example.com", password: "Motdepasse1!", fullName: "Autre" });
+    expect(again.status).toBe(400);
+  });
+
+  it("purgeExpiredDemoSpaces — removes expired spaces with their data, keeps the rest", async () => {
+    await request(app).post("/api/auth/demo");
+    const kept = (await request(app).post("/api/auth/demo")).body.data.user;
+    await User.updateOne({ _id: { $ne: kept._id }, isDemo: true }, { $set: { demoExpiresAt: new Date(Date.now() - 1000) } });
+
+    expect(await purgeExpiredDemoSpaces()).toBe(1);
+    expect(await User.countDocuments({ isDemo: true })).toBe(1);
+    expect(await Idea.countDocuments({ userId: { $ne: kept._id } })).toBe(0);
+    expect(await Analysis.countDocuments({ userId: { $ne: kept._id } })).toBe(0);
   });
 });
 

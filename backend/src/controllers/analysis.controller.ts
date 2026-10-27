@@ -19,7 +19,7 @@ function getUserId(req: Request): string {
 export async function runAnalysis(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const idea = await Idea.findOne({ _id: req.params.ideaId, userId: getUserId(req) });
-    if (!idea) throw createAppError("Idea not found", 404);
+    if (!idea) throw createAppError("Idée introuvable", 404);
 
     const { result, engine } = await enrichWithLlm(idea, analyzeIdea(idea));
 
@@ -43,7 +43,7 @@ export async function runAnalysis(req: Request, res: Response, next: NextFunctio
 export async function getAnalysisById(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const analysis = await Analysis.findOne({ _id: req.params.id, userId: getUserId(req) }).populate("ideaId");
-    if (!analysis) throw createAppError("Analysis not found", 404);
+    if (!analysis) throw createAppError("Rapport introuvable", 404);
     res.json({ success: true, data: { analysis } });
   } catch (error) {
     next(error);
