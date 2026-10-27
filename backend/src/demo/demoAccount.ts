@@ -206,6 +206,18 @@ export async function purgeExpiredDemoSpaces(now = new Date()): Promise<number> 
   return ids.length;
 }
 
+let lastPurgeAt = 0;
+
+/**
+ * Purges expired demo spaces at most once an hour per process. Called when a
+ * demo opens, so cleanup also happens on serverless hosts with no timer.
+ */
+export async function purgeExpiredDemoSpacesThrottled(): Promise<void> {
+  if (Date.now() - lastPurgeAt < 60 * 60 * 1000) return;
+  lastPurgeAt = Date.now();
+  await purgeExpiredDemoSpaces().catch((err) => console.error("Demo purge failed:", err));
+}
+
 /** Purges expired demo spaces now and then every hour, for the life of the process. */
 export function scheduleDemoPurge(): void {
   const run = () =>

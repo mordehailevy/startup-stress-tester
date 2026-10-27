@@ -279,11 +279,25 @@ Test coverage targets:
 
 ## Deployment
 
-### Vercel (frontend) + Render/Heroku (backend)
+### Vercel (frontend + API in one project)
 
-1. **Frontend** — Connect `frontend/` folder to Vercel, set build command `npm run build`, output `dist/`
-2. **Backend** — Deploy `backend/` to Render or Heroku, set env vars from `.env.example`
-3. **MongoDB** — Use MongoDB Atlas free tier
+The repository deploys to Vercel as a single project, configured by `vercel.json`:
+the React app is served statically and the Express API runs as one serverless
+function behind `/api` (`api/index.js` → `backend/src/serverless/handler.ts`), on the
+same domain — no CORS setup needed.
+
+1. Import the GitHub repository in Vercel (root directory: the repository root).
+2. Add a MongoDB database — the **MongoDB Atlas** integration from the Vercel
+   Marketplace sets `MONGODB_URI` automatically (or paste an Atlas connection string).
+3. Set the environment variables:
+
+| Variable | Required | Notes |
+|---|---|---|
+| `MONGODB_URI` | yes | MongoDB Atlas connection string |
+| `JWT_SECRET` | yes | at least 32 random characters (`openssl rand -hex 32`); the API refuses to start without it |
+| `GEMINI_API_KEY` | no | without it, feedback comes from the rule-based engine |
+
+Expired demo spaces are purged when demos are opened (no background process is needed).
 
 ### Docker (self-hosted)
 

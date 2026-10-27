@@ -4,7 +4,7 @@ import { User } from "../models/User";
 import config from "../config";
 import { createAppError } from "../middleware/errorHandler";
 import { AuthRequest } from "../middleware/auth";
-import { createDemoSpace, DEMO_EMAIL, DEMO_PASSWORD, DEMO_TTL_HOURS } from "../demo/demoAccount";
+import { createDemoSpace, purgeExpiredDemoSpacesThrottled, DEMO_EMAIL, DEMO_PASSWORD, DEMO_TTL_HOURS } from "../demo/demoAccount";
 
 function signToken(userId: string, ttlHours?: number): string {
   const payload = { id: userId };
@@ -78,6 +78,7 @@ export async function getMe(req: Request, res: Response, next: NextFunction): Pr
  */
 export async function loginDemo(_req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
+    await purgeExpiredDemoSpacesThrottled();
     const user = await createDemoSpace();
     res.status(201).json({ success: true, data: { user, token: signToken(user._id.toString(), DEMO_TTL_HOURS) } });
   } catch (error) {

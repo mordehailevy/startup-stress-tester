@@ -14,6 +14,9 @@ import analysisRoutes from "./routes/analysis.routes";
 
 const app = express();
 
+// One hop of proxy (Vercel's edge): req.ip becomes the visitor's IP, not the proxy's.
+if (config.behindProxy) app.set("trust proxy", 1);
+
 // ── Security & parsing ──────────────────────────
 app.use(helmet());
 app.use(cors({ origin: config.isProduction ? config.clientOrigin || false : "*" }));
