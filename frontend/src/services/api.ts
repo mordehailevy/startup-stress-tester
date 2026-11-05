@@ -35,6 +35,8 @@ export const authAPI = {
   login: (data: { email: string; password: string }) =>
     api.post("/auth/login", data),
   getMe: () => api.get("/auth/me"),
+  demo: () => api.post("/auth/demo"),
+  claim: (data: { email: string; password: string; fullName: string }) => api.post("/auth/claim", data),
 };
 
 // ── Ideas ───────────────────────────────────────

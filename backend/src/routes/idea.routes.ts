@@ -22,10 +22,14 @@ router.use(authenticate);
 const analyzeLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: config.aiHourlyLimitPerUser,
-  keyGenerator: (req) => (req as AuthRequest).userId as string,
+  // Anyone can open demo spaces, so demo analyses are limited per IP rather than per space.
+  keyGenerator: (req) => {
+    const r = req as AuthRequest;
+    return r.isDemo ? `demo:${req.ip}` : (r.userId as string);
+  },
   standardHeaders: true,
   legacyHeaders: false,
-  message: { success: false, error: { message: "Too many analyses this hour, please try again later" } },
+  message: { success: false, error: { message: "Tu as atteint la limite de stress tests pour cette heure, réessaie plus tard" } },
 });
 
 /**
