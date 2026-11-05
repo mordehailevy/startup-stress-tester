@@ -9,6 +9,8 @@
 ![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
+**Live demo:** [startup-stress-tester-six.vercel.app](https://startup-stress-tester-six.vercel.app) (click "Essayer la démo" for a private demo space, no sign-up needed)
+
 ---
 
 ## 📋 Table of Contents
@@ -271,7 +273,7 @@ docker compose -f docker-compose.yml up -d
 
 ## Author
 
-**Mordehai Levy** — AI Automation & Full-Stack Developer · [GitHub](https://github.com/mordehailevy) · [LinkedIn](https://www.linkedin.com/in/mordehai-levy-593455426)
+**Mordehai Levy** — AI Automation & Full-Stack Developer · [GitHub](https://github.com/mordehailevy) · [LinkedIn](https://www.linkedin.com/in/mordehailevy)
 
 ---
 
